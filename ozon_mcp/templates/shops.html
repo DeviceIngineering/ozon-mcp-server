@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set active = "shops" %}
+
+{% block title %}Магазины - Ozon MCP{% endblock %}
+
+{% block content %}
+<h3>Магазины Ozon</h3>
+
+{% for shop_id, shop in shops.items() %}
+<div class="card" id="shop-{{ shop_id }}">
+    <h5>{{ shop.name }} <small style="color:#666">({{ shop_id }})</small></h5>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+        <label>Client ID <input type="text" data-shop="{{ shop_id }}" data-key="ozon_client_id" value="{{ shop.ozon_client_id }}"></label>
+        <label>API Key <input type="password" data-shop="{{ shop_id }}" data-key="ozon_api_key" value="{{ shop.ozon_api_key }}"></label>
+        <label>Perf Client ID <input type="text" data-shop="{{ shop_id }}" data-key="ozon_perf_client_id" value="{{ shop.ozon_perf_client_id }}"></label>
+        <label>Perf Secret <input type="password" data-shop="{{ shop_id }}" data-key="ozon_perf_client_secret" value="{{ shop.ozon_perf_client_secret }}"></label>
+    </div>
+    <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+        <button onclick="saveShop('{{ shop_id }}')">Сохранить</button>
+        <button class="secondary" onclick="testShop('{{ shop_id }}')">Проверить</button>
+        <button class="contrast" onclick="deleteShop('{{ shop_id }}')">Удалить</button>
+    </div>
+    <div id="result-{{ shop_id }}" style="margin-top:0.5rem;"></div>
+</div>
+{% endfor %}
+
+<div class="card">
+    <h5>Добавить магазин</h5>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+        <label>ID магазина <input type="text" id="new-shop-id" placeholder="shop1"></label>
+        <label>Название <input type="text" id="new-shop-name" placeholder="Магазин Альфа"></label>
+        <label>Client ID <input type="text" id="new-ozon_client_id"></label>
+        <label>API Key <input type="password" id="new-ozon_api_key"></label>
+        <label>Perf Client ID <input type="text" id="new-ozon_perf_client_id"></label>
+        <label>Perf Secret <input type="password" id="new-ozon_perf_client_secret"></label>
+    </div>
+    <button style="margin-top:0.5rem;" onclick="addShop()">Добавить</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getShopData(shopId) {
+    const data = {shop_id: shopId};
+    document.querySelectorAll(`[data-shop="${shopId}"]`).forEach(el => {
+        data[el.dataset.key] = el.value;
+    });
+    // Сохранить имя из заголовка
+    const h5 = document.querySelector(`#shop-${shopId} h5`);
+    if (h5) data.name = h5.textContent.split('(')[0].trim();
+    return data;
+}
+
+async function saveShop(shopId) {
+    const data = getShopData(shopId);
+    const r = await fetch('/api/shops', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+    showToast(r.ok ? 'Сохранено' : 'Ошибка', r.ok);
+}
+
+async function testShop(shopId) {
+    const div = document.getElementById('result-' + shopId);
+    div.innerHTML = '<p aria-busy="true">Проверка...</p>';
+    const r = await fetch(`/api/shops/${shopId}/test`, {method:'POST'});
+    const d = await r.json();
+    let html = `Seller: ${d.seller_ok ? '<span class="badge-ok">OK</span>' : '<span class="badge-err">ERR</span>'} | `;
+    html += `Perf: ${d.perf_ok ? '<span class="badge-ok">OK</span>' : '<span class="badge-err">ERR</span>'}`;
+    if (d.errors.length) html += '<br><small>' + d.errors.join('<br>') + '</small>';
+    div.innerHTML = html;
+}
+
+async function deleteShop(shopId) {
+    if (!confirm(`Удалить магазин ${shopId}?`)) return;
+    const r = await fetch(`/api/shops/${shopId}`, {method:'DELETE'});
+    if (r.ok) location.reload();
+    else showToast('Ошибка удаления', false);
+}
+
+async function addShop() {
+    const data = {
+        shop_id: document.getElementById('new-shop-id').value,
+        name: document.getElementById('new-shop-name').value,
+        ozon_client_id: document.getElementById('new-ozon_client_id').value,
+        ozon_api_key: document.getElementById('new-ozon_api_key').value,
+        ozon_perf_client_id: document.getElementById('new-ozon_perf_client_id').value,
+        ozon_perf_client_secret: document.getElementById('new-ozon_perf_client_secret').value,
+    };
+    if (!data.shop_id) { showToast('Укажите ID магазина', false); return; }
+    const r = await fetch('/api/shops', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+    if (r.ok) location.reload();
+    else showToast('Ошибка', false);
+}
+</script>
+{% endblock %}

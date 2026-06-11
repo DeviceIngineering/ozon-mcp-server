@@ -1,0 +1,29 @@
+[project]
+name = "ozon-mcp-server"
+version = "1.0.0"
+description = "MCP-сервер для Ozon Seller API + Performance API"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "jinja2>=3.1.0",
+    "aiosqlite>=0.20.0",
+    "cryptography>=43.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ozon_mcp"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+ozon-mcp = "ozon_mcp.server:main"
+ozon-mcp-web = "ozon_mcp.app:main"

@@ -1,0 +1,25 @@
+services:
+  ozon-mcp:
+    build: .
+    container_name: ozon-mcp-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ozon_data:/data
+    environment:
+      - OZON_CLIENT_ID=${OZON_CLIENT_ID:-}
+      - OZON_API_KEY=${OZON_API_KEY:-}
+      - OZON_PERF_CLIENT_ID=${OZON_PERF_CLIENT_ID:-}
+      - OZON_PERF_CLIENT_SECRET=${OZON_PERF_CLIENT_SECRET:-}
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
+      - HEALTH_CHECK_INTERVAL_MIN=${HEALTH_CHECK_INTERVAL_MIN:-30}
+      - PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ozon_data:

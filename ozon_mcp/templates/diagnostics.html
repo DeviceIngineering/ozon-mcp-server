@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% set active = "diagnostics" %}
+
+{% block title %}Диагностика - Ozon MCP{% endblock %}
+
+{% block content %}
+<h3>Диагностика
+    <button id="run-btn" class="outline" style="float:right; padding: 0.3rem 1rem; font-size: 0.85rem;"
+            onclick="runDiagnostics()">Проверить сейчас</button>
+</h3>
+<p style="color:#666; font-size:0.85rem;">
+    Автопроверка каждые {{ interval_min }} мин: доступность хостов Ozon + лёгкие реальные запросы по 12 категориям Seller API + проверка ключей Performance API.
+</p>
+
+{% if degradations %}
+<div class="card" style="border-left: 4px solid #cb2431;">
+    <h5 class="badge-err">⛔ Деградации инструментов (возможно изменение Ozon API)</h5>
+    <p style="font-size:0.85rem; color:#666;">Эти инструменты раньше работали, а теперь стабильно падают:</p>
+    <table>
+        <thead><tr><th>Инструмент</th><th>Последний успех</th><th>Ошибок подряд</th><th>Последняя ошибка</th></tr></thead>
+        <tbody>
+            {% for d in degradations %}
+            <tr>
+                <td><code>{{ d.tool }}</code></td>
+                <td>{{ d.last_success }}</td>
+                <td class="badge-err">{{ d.consecutive_errors }}</td>
+                <td style="font-size:0.8rem;">{{ d.last_error }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% for shop in shops %}
+<div class="card">
+    <h5>
+        {{ shop.name }} <small style="color:#888;">({{ shop.id }})</small>
+        {% if shop.last_check %}
+            {% if shop.last_check.healthy %}
+                <span class="badge-ok" style="float:right;">✅ Здоров</span>
+            {% else %}
+                <span class="badge-err" style="float:right;">⛔ Есть проблемы</span>
+            {% endif %}
+        {% endif %}
+    </h5>
+
+    <p style="font-size:0.9rem;">
+        <strong>Ключи:</strong>
+        Seller API {% if shop.seller_keys_set %}<span class="badge-ok">заданы</span>{% else %}<span class="badge-err">НЕ заданы</span>{% endif %}
+        · Performance API {% if shop.perf_keys_set %}<span class="badge-ok">заданы</span>{% else %}<span class="badge-err">не заданы</span>{% endif %}
+        <br><small style="color:#888;">Ozon-ключи не содержат срока действия — истечение видно по 401 в пробах. Не забывайте о плановой ротации ключей.</small>
+    </p>
+
+    {% if shop.last_check %}
+    <details>
+        <summary style="font-size:0.9rem;">
+            Проверка {{ shop.last_check.checked_at }}:
+            хосты {{ shop.last_check.hosts | selectattr('ok') | list | length }}/{{ shop.last_check.hosts | length }},
+            пробы {{ shop.last_check.probes | selectattr('ok') | list | length }}/{{ shop.last_check.probes | length }}
+        </summary>
+        {% if shop.last_check.warnings %}
+            {% for w in shop.last_check.warnings %}
+            <p style="margin:0.2rem 0; font-size:0.85rem;">{{ w }}</p>
+            {% endfor %}
+        {% endif %}
+        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1rem;">
+            <table>
+                <thead><tr><th>Хост</th><th>ms</th><th></th></tr></thead>
+                <tbody>
+                {% for h in shop.last_check.hosts %}
+                    <tr>
+                        <td style="font-size:0.8rem;">{{ h.host }}</td>
+                        <td>{{ h.latency_ms }}</td>
+                        <td>{% if h.ok %}<span class="badge-ok">OK</span>{% else %}<span class="badge-err">{{ h.error }}</span>{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <table>
+                <thead><tr><th>Категория (проба)</th><th>ms</th><th></th></tr></thead>
+                <tbody>
+                {% for p in shop.last_check.probes %}
+                    <tr>
+                        <td style="font-size:0.8rem;" title="{{ p.endpoint }}">{{ p.category }}</td>
+                        <td>{{ p.latency_ms }}</td>
+                        <td>{% if p.ok %}<span class="badge-ok">OK{% if p.note %} ({{ p.note }}){% endif %}</span>{% elif p.skipped %}<span style="color:#888;">пропущено</span>{% else %}<span class="badge-err" title="{{ p.error }}">{{ p.status_code or 'ERR' }}{% if p.hint %} — {{ p.hint }}{% endif %}</span>{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% else %}
+    <p style="color:#888; font-size:0.85rem;">Проверок ещё не было — нажмите «Проверить сейчас».</p>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% if history %}
+<div class="card">
+    <h5>История проверок</h5>
+    <table>
+        <thead><tr><th>Время</th><th>Магазин</th><th>Статус</th><th>Хост-ошибки</th><th>Проба-ошибки</th><th>Предупреждения</th></tr></thead>
+        <tbody>
+            {% for h in history %}
+            <tr>
+                <td>{{ h.at }}</td>
+                <td>{{ h.shop }}</td>
+                <td>{% if h.healthy %}<span class="badge-ok">OK</span>{% else %}<span class="badge-err">ПРОБЛЕМЫ</span>{% endif %}</td>
+                <td>{{ h.ping_failures }}</td>
+                <td>{{ h.probe_failures }}</td>
+                <td style="font-size:0.8rem;">{{ h.warnings | join('; ') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runDiagnostics() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Проверяю…';
+    try {
+        const r = await fetch('/api/diagnostics/run', {method: 'POST'});
+        const data = await r.json();
+        showToast('Проверено магазинов: ' + data.shops_checked, true);
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) {
+        showToast('Ошибка: ' + e, false);
+        btn.disabled = false;
+        btn.textContent = 'Проверить сейчас';
+    }
+}
+</script>
+{% endblock %}

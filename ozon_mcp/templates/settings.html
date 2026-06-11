@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% set active = "settings" %}
+
+{% block title %}Настройки - Ozon MCP{% endblock %}
+
+{% block content %}
+<h3>API-ключи Ozon</h3>
+
+<div class="card">
+    <h5>Seller API</h5>
+    <label>Client ID
+        <input type="text" id="ozon_client_id" placeholder="123456" value="{{ settings.ozon_client_id }}">
+    </label>
+    <label>API Key
+        <input type="password" id="ozon_api_key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="{{ settings.ozon_api_key }}">
+    </label>
+</div>
+
+<div class="card">
+    <h5>Performance API (реклама)</h5>
+    <label>Client ID
+        <input type="text" id="ozon_perf_client_id" placeholder="987654" value="{{ settings.ozon_perf_client_id }}">
+    </label>
+    <label>Client Secret
+        <input type="password" id="ozon_perf_client_secret" placeholder="yyyyyyyyyyyyyyyy" value="{{ settings.ozon_perf_client_secret }}">
+    </label>
+</div>
+
+<div style="display: flex; gap: 1rem;">
+    <button id="btn-save" onclick="saveSettings()">Сохранить</button>
+    <button id="btn-test" class="secondary" onclick="testConnection()">Проверить подключение</button>
+</div>
+
+<div id="test-result" class="card" style="margin-top: 1rem; display: none;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSettings() {
+    const btn = document.getElementById('btn-save');
+    btn.setAttribute('aria-busy', 'true');
+    try {
+        const data = {
+            ozon_client_id: document.getElementById('ozon_client_id').value,
+            ozon_api_key: document.getElementById('ozon_api_key').value,
+            ozon_perf_client_id: document.getElementById('ozon_perf_client_id').value,
+            ozon_perf_client_secret: document.getElementById('ozon_perf_client_secret').value,
+        };
+        const r = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+        });
+        if (r.ok) {
+            showToast('Ключи сохранены', true);
+        } else {
+            showToast('Ошибка сохранения', false);
+        }
+    } catch(e) {
+        showToast('Ошибка: ' + e.message, false);
+    } finally {
+        btn.removeAttribute('aria-busy');
+    }
+}
+
+async function testConnection() {
+    const btn = document.getElementById('btn-test');
+    const div = document.getElementById('test-result');
+    btn.setAttribute('aria-busy', 'true');
+    div.style.display = 'none';
+    try {
+        const r = await fetch('/api/test-connection', {method: 'POST'});
+        const data = await r.json();
+        let html = '<h5>Результат проверки</h5>';
+        html += `<p>Seller API: ${data.seller_ok ? '<span class="badge-ok">OK</span>' : '<span class="badge-err">Ошибка</span>'}</p>`;
+        html += `<p>Performance API: ${data.perf_ok ? '<span class="badge-ok">OK</span>' : '<span class="badge-err">Ошибка</span>'}</p>`;
+        if (data.errors && data.errors.length) {
+            html += '<details><summary>Подробности</summary><ul>';
+            data.errors.forEach(e => html += `<li>${e}</li>`);
+            html += '</ul></details>';
+        }
+        div.innerHTML = html;
+        div.style.display = 'block';
+    } catch(e) {
+        showToast('Ошибка: ' + e.message, false);
+    } finally {
+        btn.removeAttribute('aria-busy');
+    }
+}
+</script>
+{% endblock %}

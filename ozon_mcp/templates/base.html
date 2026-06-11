@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Ozon MCP Server{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        :root { --pico-font-size: 15px; }
+        nav { padding: 0.5rem 1rem; background: #1a1a2e; }
+        nav ul li a { color: #e0e0e0; }
+        nav ul li a.active { color: #fff; font-weight: bold; }
+        nav .brand { color: #fff; font-weight: bold; font-size: 1.1rem; }
+        .card { background: var(--pico-card-background-color); border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+        .stat-card { text-align: center; }
+        .stat-card .value { font-size: 2rem; font-weight: bold; color: #005cc5; }
+        .stat-card .label { color: #666; font-size: 0.85rem; }
+        .badge-ok { color: #22863a; }
+        .badge-err { color: #cb2431; }
+        table { font-size: 0.9rem; }
+        .toast { position: fixed; top: 1rem; right: 1rem; padding: 0.8rem 1.2rem; border-radius: 6px; z-index: 999; display: none; }
+        .toast-ok { background: #d4edda; color: #155724; }
+        .toast-err { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><span class="brand">Ozon MCP</span></li>
+        </ul>
+        <ul>
+            <li><a href="/" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+            <li><a href="/diagnostics" class="{% if active == 'diagnostics' %}active{% endif %}">Диагностика</a></li>
+            <li><a href="/shops" class="{% if active == 'shops' %}active{% endif %}">Магазины</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <div id="toast" class="toast"></div>
+    <script>
+        function showToast(msg, ok) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err');
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

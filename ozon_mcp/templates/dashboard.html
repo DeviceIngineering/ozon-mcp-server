@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+
+{% block title %}Dashboard - Ozon MCP{% endblock %}
+
+{% block content %}
+<h3>Dashboard</h3>
+
+{% if degradations %}
+<div class="card" style="border-left: 4px solid #cb2431;">
+    <strong class="badge-err">⛔ Деградации: {{ degradations | length }} инструмент(ов) перестали работать</strong>
+    — возможно изменение Ozon API. <a href="/diagnostics">Подробности →</a>
+</div>
+{% endif %}
+
+{% if last_health and not last_health.healthy %}
+<div class="card" style="border-left: 4px solid #b08800;">
+    <strong style="color:#b08800;">⚠️ Последняя проверка Ozon API ({{ last_health.at }}) выявила проблемы</strong>
+    — хосты: {{ last_health.ping_failures }}, пробы: {{ last_health.probe_failures }}.
+    <a href="/diagnostics">Диагностика →</a>
+</div>
+{% endif %}
+
+{% if stats.shops %}
+<div class="card" style="padding: 0.8rem 1.2rem;">
+    <strong>Магазин:</strong>
+    <a href="/" {% if not current_shop %}style="font-weight:bold"{% endif %}>Все</a>
+    {% for s in stats.shops %}
+     | <a href="/?shop={{ s }}" {% if current_shop == s %}style="font-weight:bold"{% endif %}>{{ s }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="stat-grid" id="stats-cards">
+    <div class="card stat-card">
+        <div class="value">{{ stats.total }}</div>
+        <div class="label">Всего вызовов</div>
+    </div>
+    <div class="card stat-card">
+        <div class="value">{{ stats.today }}</div>
+        <div class="label">Сегодня</div>
+    </div>
+    <div class="card stat-card">
+        <div class="value badge-err">{{ stats.errors }}</div>
+        <div class="label">Ошибки</div>
+    </div>
+    <div class="card stat-card">
+        <div class="value">{{ stats.avg_ms }} ms</div>
+        <div class="label">Среднее время</div>
+    </div>
+</div>
+
+{% if stats.top_tools %}
+<div class="card">
+    <h5>Топ инструментов</h5>
+    <table>
+        <thead>
+            <tr><th>Инструмент</th><th>Вызовов</th><th>Среднее, ms</th><th>Ошибки</th></tr>
+        </thead>
+        <tbody>
+            {% for t in stats.top_tools %}
+            <tr>
+                <td><code>{{ t.name }}</code></td>
+                <td>{{ t.count }}</td>
+                <td>{{ t.avg_ms }}</td>
+                <td class="{% if t.errors > 0 %}badge-err{% endif %}">{{ t.errors }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if stats.recent %}
+<div class="card">
+    <h5>Последние вызовы</h5>
+    <table>
+        <thead>
+            <tr><th>Время</th><th>Магазин</th><th>Инструмент</th><th>ms</th><th>Статус</th><th>Ошибка</th></tr>
+        </thead>
+        <tbody>
+            {% for r in stats.recent %}
+            <tr>
+                <td>{{ r.at }}</td>
+                <td>{{ r.shop }}</td>
+                <td><code>{{ r.tool }}</code></td>
+                <td>{{ r.ms }}</td>
+                <td>{% if r.ok %}<span class="badge-ok">OK</span>{% else %}<span class="badge-err">ERR</span>{% endif %}</td>
+                <td>{{ r.error or '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if not stats.recent and stats.total == 0 %}
+<div class="card">
+    <p>Пока нет вызовов. Подключите Claude Desktop или Claude Code к <code>http://&lt;host&gt;:8000/sse</code></p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    setTimeout(() => location.reload(), 30000);
+</script>
+{% endblock %}
