@@ -1,109 +1,113 @@
-# Ozon MCP Server
+# Ozon MCP Server v2.0
 
-MCP-сервер для управления несколькими магазинами Ozon через Claude. Подключается к **Seller API** (товары, цены, акции, финансы, аналитика) и **Performance API** (реклама).
+MCP-сервер для управления несколькими магазинами Ozon через Claude / OpenClaw.
+**Seller API** (товары, цены, акции, финансы, аналитика) + **Performance API** (реклама).
+151 инструмент, мульти-магазин, веб-дашборд, встроенная диагностика Ozon API.
 
-**Поддержка нескольких магазинов** — каждый вызов принимает `shop_id`, что позволяет работать с разными аккаунтами Ozon в одном диалоге.
+Эндпоинты приведены в соответствие с актуальным Ozon API (июнь 2026, сверка
+живыми запросами): единый список возвратов, отмены v2, реализация v2, ship v4,
+supply-order v3, реальные ценовые стратегии и «Хочу скидку», собственные акции
+продавца, новая модель рекламы (трафареты CPC + «Оплата за заказ»).
 
-## 114 инструментов
+**Поддержка нескольких магазинов** — каждый вызов принимает `shop_id`.
 
-| Раздел | Инструменты | Приоритет |
+## 151 инструмент
+
+| Раздел | Ключевые инструменты | Приоритет |
 |--------|-------------|-----------|
 | Магазины | ozon_list_shops | — |
-| Акции | ozon_actions_list, ozon_actions_candidates, ozon_actions_products, ozon_actions_activate | P0 |
-| Ценовые стратегии | ozon_pricing_strategy_list/create/update/delete, ozon_pricing_currency_convert, ozon_pricing_competitor_prices | P0 |
-| Цены | ozon_set_prices, ozon_get_prices, ozon_get_prices_v4, ozon_min_price_timer_status/renew | P0 |
-| Финансы | ozon_finance_transactions, ozon_finance_totals, ozon_finance_realization, ozon_finance_cash_flow | P0 |
-| Рейтинг | ozon_rating_summary, ozon_rating_history | P0 |
-| Отзывы | ozon_reviews, ozon_review_reply, ozon_review_reply_update, ozon_review_reply_delete | P0 |
-| Реклама | ozon_ad_campaigns, ozon_ad_statistics, ozon_ad_campaign_stop/create/activate, ozon_ad_campaign_bids, ozon_ad_campaign_budget/update, ozon_ad_statistics_daily/expenses, ozon_ad_campaign_objects/update, ozon_ad_balance | P0-P1 |
-| Аналитика | ozon_analytics, ozon_stock_on_warehouses | P1 |
-| Товары | ozon_product_list, ozon_product_info, ozon_product_attributes, ozon_product_stocks, ozon_product_certificates | P1 |
-| Импорт товаров | ozon_product_import, ozon_product_import_info, ozon_product_update_offer_id/images, ozon_product_description, ozon_product_update_stocks, ozon_product_geo_restrictions, ozon_product_unarchive/delete, ozon_product_limits, ozon_product_rating_by_sku, ozon_product_discounted | P1 |
-| Заказы FBS | ozon_orders_fbs, ozon_order_fbs_get/ship/cancel, ozon_order_fbs_cancel_reasons, ozon_order_fbs_act_create/status/pdf/digital, ozon_order_fbs_country_list/set, ozon_order_fbs_restrictions/timeslot, ozon_order_fbo_get | P1 |
-| Заказы FBO | ozon_orders_fbo | P1 |
-| Возвраты | ozon_returns_fbo, ozon_returns_fbs, ozon_returns_fbs_approve/reject/get, ozon_returns_report | P1 |
-| Вопросы | ozon_questions, ozon_question_reply | P1 |
-| Чаты | ozon_chat_list, ozon_chat_history, ozon_chat_send, ozon_chat_send_file, ozon_chat_updates, ozon_chat_start, ozon_chat_read | P1 |
-| Отмены | ozon_cancellation_list, ozon_cancellation_approve/reject | P1 |
-| Склады | ozon_warehouse_list, ozon_delivery_methods | P2 |
-| Отчёты | ozon_report_list, ozon_report_info, ozon_report_products/stocks/finance/discounted_create | P1 |
-| Бренды | ozon_brand_certificates | P2 |
-| Категории | ozon_category_tree, ozon_category_attributes, ozon_category_attribute_values/search | P2 |
-| Уведомления | ozon_notifications, ozon_notification_read | P1 |
-| Скидки | ozon_discount_tasks, ozon_discount_approve/decline | P0 |
-| Компания | ozon_company_info, ozon_company_tariffs | P2 |
-| Сертификаты | ozon_certificate_list, ozon_certificate_info | P2 |
-| Архив | ozon_product_archive | P2 |
+| Диагностика | ozon_diagnostics, ozon_degradations | P0 |
+| Акции Ozon | ozon_actions_list/candidates/products, activate, deactivate | P0 |
+| Собственные акции | ozon_seller_actions, ozon_seller_action_create/toggle/products(+add/delete) | P1 |
+| Ценовые стратегии | ozon_pricing_strategy_list/create/info/update/delete/status/products, ozon_pricing_competitors, ozon_pricing_competitor_prices | P1 |
+| Цены | ozon_set_prices, ozon_get_prices (v5), ozon_min_price_timer_status/renew | P0 |
+| «Хочу скидку» | ozon_discount_tasks (v2), ozon_discount_approve/decline | P1 |
+| Финансы | ozon_finance_balance, ozon_finance_transactions*, ozon_finance_totals*, ozon_finance_realization (v2), ozon_finance_cash_flow, ozon_finance_mutual_settlement, ozon_finance_accruals | P0 |
+| Реклама (Performance) | ozon_ad_campaigns, ozon_ad_campaign_create (трафареты), activate/stop, budget_update, ozon_ad_campaign_products(+add/delete), bids, bids_competitive, min_bids, статистика (async + daily/expenses/products) | P0 |
+| Оплата за заказ | ozon_search_promo_products/enable/disable/bids | P0 |
+| Аналитика | ozon_analytics, ozon_analytics_stocks, ozon_stock_on_warehouses, ozon_product_queries (позиции в поиске), ozon_search_queries_top | P0-P1 |
+| Товары | ozon_product_list/info/attributes/stocks, create/import, attributes_update, import_by_sku, media, описание, архив, rating-by-sku | P1 |
+| Заказы FBO | ozon_orders_fbo, ozon_order_fbo_get | P1 |
+| Поставки FBO | ozon_supply_orders (v3), ozon_supply_order_get/counters/timeslots | P1 |
+| Заказы FBS | ozon_orders_fbs, unfulfilled, get, ship (v4), label, cancel, акты, страна товара | P1 |
+| Возвраты | ozon_returns_fbo (единый список), ozon_returns_fbs (rFBS-заявки), approve/reject, ozon_returns_rfbs_action | P1 |
+| Отмены | ozon_cancellation_list (v2), approve/reject | P1 |
+| Отзывы/Вопросы | ozon_reviews, ozon_review_reply, ozon_review_comments, ozon_questions, ozon_question_reply — требуют Premium Plus | P1 |
+| Чаты | ozon_chat_list (v3), history (v3), send, read | P1 |
+| Рейтинг | ozon_rating_summary, ozon_rating_history | P1 |
+| Склады/Отчёты | ozon_warehouses (v2), ozon_delivery_methods (v2), report_* | P2 |
+| Push-вебхуки | ozon_notifications, ozon_notification_push_types | P2 |
+
+\* `ozon_finance_transactions/totals` — Ozon отключает старый эндпоинт 06.07.2026; замена уже встроена (`cash_flow`, `accruals`).
+
+## Диагностика
+
+- Страница **`/diagnostics`**: статус по каждому магазину — доступность хостов,
+  12 проб категорий Seller API, проверка ключей Performance API, история проверок.
+- Фоновая автопроверка каждые `HEALTH_CHECK_INTERVAL_MIN` минут (по умолчанию 30).
+- Детектор деградаций: инструмент работал → стабильно падает = алерт «возможно
+  Ozon изменил API» на дашборде.
+- MCP-инструменты: `ozon_diagnostics`, `ozon_degradations`.
+- Особенности Ozon: ключи не содержат срока действия (истечение ловится по 401);
+  403 на отзывах/вопросах = нет подписки Premium Plus (не считается поломкой).
 
 ## Запуск через Docker
 
 ```bash
-./start.sh
+cp .env.example .env   # задать MCP_AUTH_TOKEN при внешнем доступе
+docker compose up -d --build
 ```
 
 После запуска:
 - **Dashboard**: http://localhost:8000
+- **Диагностика**: http://localhost:8000/diagnostics
 - **Магазины**: http://localhost:8000/shops
 - **Health**: http://localhost:8000/api/health
 - **MCP SSE**: http://localhost:8000/sse
 
-## Подключение к Claude Desktop
+Деплой на отдельный Mac mini и подключение OpenClaw — см. **[DEPLOY.md](DEPLOY.md)**.
 
-Файл `~/Library/Application Support/Claude/claude_desktop_config.json`:
+## Подключение клиентов
 
-```json
-{
-  "mcpServers": {
-    "wildberries": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:8001/sse"]
-    },
-    "ozon": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:8000/sse"]
-    }
-  }
-}
+Claude Code:
+
+```bash
+claude mcp add --transport sse ozon "http://<host>:8000/sse" \
+  --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
 ```
 
-После редактирования — полный перезапуск Claude Desktop (Cmd+Q → открыть).
+OpenClaw / другие MCP-клиенты — SSE URL `http://<host>:8000/sse` + заголовок
+`Authorization: Bearer <MCP_AUTH_TOKEN>` (или `?token=...`).
 
 ## Добавление магазинов
 
-Открыть http://localhost:8000/shops → «Добавить магазин» → ввести ключи → «Проверить».
-
-Ключи шифруются (Fernet) и хранятся в Docker volume `/data`.
-
-### Ключи Seller API
-- **OZON_CLIENT_ID** + **OZON_API_KEY** → Ozon Seller ЛК → Настройки → API-ключи
-
-### Ключи Performance API (реклама)
-- **OZON_PERF_CLIENT_ID** + **OZON_PERF_CLIENT_SECRET** → Ozon Performance → Настройки → API доступ
-
-### Через переменные окружения (один магазин `default`)
-
-```bash
-OZON_CLIENT_ID=123456
-OZON_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-OZON_PERF_CLIENT_ID=987654
-OZON_PERF_CLIENT_SECRET=yyyyyyyyyyyyyyyyyyyyyyyy
-```
+http://localhost:8000/shops → «Добавить магазин» → Client-Id + Api-Key (Seller API)
+и Client-Id + Client-Secret (Performance API). Ключи шифруются (Fernet), хранятся в томе `/data`.
 
 ## Структура проекта
 
 ```
 ozon-mcp-server/
-├── pyproject.toml
-├── Dockerfile
 ├── docker-compose.yml          # порт 8000
-├── config/
-│   ├── claude_desktop_config.json
-│   └── claude_code_settings.json
+├── DEPLOY.md                   # деплой на отдельный Mac mini + OpenClaw
 └── ozon_mcp/
-    ├── server.py       # MCP-сервер (114 инструментов, мульти-магазин)
-    ├── client.py       # HTTP-клиенты Ozon Seller + Performance API
-    ├── app.py          # FastAPI (SSE + веб-интерфейс)
-    ├── settings.py     # Управление магазинами и ключами (Fernet)
-    ├── stats.py        # Статистика вызовов (SQLite)
-    └── templates/      # PicoCSS, dashboard + shops
+    ├── server.py       # MCP-сервер (151 инструмент, мульти-магазин)
+    ├── client.py       # Seller API + Performance API клиенты
+    ├── app.py          # FastAPI (SSE + веб + авторизация + health-loop)
+    ├── diagnostics.py  # пробы категорий, детектор деградаций
+    ├── settings.py     # магазины и ключи (Fernet)
+    ├── stats.py        # статистика вызовов + история проверок (SQLite)
+    └── templates/      # dashboard, diagnostics, shops
 ```
+
+## Известные ограничения Ozon API (июнь 2026)
+
+- Реклама: бюджеты и ставки CPC — в микрорублях (1000000 = 1 ₽); создание кампаний
+  через API — только «Трафареты» (CPC); асинхронная статистика — 1 отчёт одновременно,
+  ≤10 кампаний, ≤62 дня; официального метода баланса рекламы нет.
+- «Оплата за заказ»: ставки фиксированные (с 02.2025), управление — только вкл/выкл.
+- Отзывы, вопросы, часть аналитики — требуют подписку Premium Plus (ошибка code 7).
+- Метрики воронки в ozon_analytics помечены Ozon как deprecated — для позиций
+  в поиске используйте ozon_product_queries.
+- /v3/finance/transaction/* отключаются 06.07.2026.
+- supply-order v3: статусы — целочисленные коды 1-8.

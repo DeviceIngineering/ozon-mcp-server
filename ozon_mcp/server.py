@@ -135,35 +135,82 @@ TOOLS = [
           {"action_id": {"type": "integer", "description": "ID акции"}},
           ["action_id"]),
     _tool("ozon_actions_activate",
-          "[P0] Добавить или УБРАТЬ товары из акции. Используй для вывода убыточных товаров из акции.",
+          "[P0] Добавить товары в акцию с указанной акционной ценой.",
           {"action_id": {"type": "integer"},
-           "products": {"type": "array", "items": {"type": "object", "properties": {"product_id": {"type": "integer"}, "action_price": {"type": "number", "description": "Цена в акции (0 = вывести)"}}}}},
+           "products": {"type": "array", "items": {"type": "object", "properties": {"product_id": {"type": "integer"}, "action_price": {"type": "number"}}}}},
           ["action_id", "products"]),
+    _tool("ozon_actions_deactivate",
+          "[P0] УБРАТЬ товары из акции. Используй для вывода убыточных товаров из акции.",
+          {"action_id": {"type": "integer"},
+           "product_ids": {"type": "array", "items": {"type": "integer"}}},
+          ["action_id", "product_ids"]),
+
+    # === СОБСТВЕННЫЕ АКЦИИ ПРОДАВЦА ===
+    _tool("ozon_seller_actions",
+          "[P1] Список СОБСТВЕННЫХ акций продавца (создаются продавцом, в отличие от акций Ozon).",
+          {"status": {"type": "string", "description": "Фильтр по статусу (опц.)"},
+           "limit": {"type": "integer", "default": 50}}),
+    _tool("ozon_seller_action_create",
+          "[P1] Создать собственную акцию-скидку.",
+          {"title": {"type": "string"}, "date_start": {"type": "string", "description": "RFC3339"},
+           "date_end": {"type": "string"}, "min_action_percent": {"type": "integer", "description": "Мин. процент скидки"}},
+          ["title", "date_start", "date_end", "min_action_percent"]),
+    _tool("ozon_seller_action_toggle",
+          "[P1] Включить/выключить собственную акцию.",
+          {"action_id": {"type": "integer"}, "is_turn_on": {"type": "boolean"}},
+          ["action_id", "is_turn_on"]),
+    _tool("ozon_seller_action_products",
+          "[P1] Товары собственной акции.",
+          {"action_id": {"type": "integer"}, "limit": {"type": "integer", "default": 100}},
+          ["action_id"]),
+    _tool("ozon_seller_action_products_add",
+          "[P1] Добавить товары в собственную акцию.",
+          {"action_id": {"type": "integer"},
+           "products": {"type": "array", "items": {"type": "object"}, "description": "[{product_id, action_price}, ...]"}},
+          ["action_id", "products"]),
+    _tool("ozon_seller_action_products_delete",
+          "[P1] Убрать товары из собственной акции.",
+          {"action_id": {"type": "integer"}, "product_ids": {"type": "array", "items": {"type": "integer"}}},
+          ["action_id", "product_ids"]),
 
     # === ЦЕНОВЫЕ СТРАТЕГИИ ===
     _tool("ozon_pricing_strategy_list",
-          "Список стратегий ценообразования.",
-          {"product_id": {"type": "array", "items": {"type": "integer"}}},
-          ["product_id"]),
+          "[P1] Список ценовых стратегий (автоуправление ценами по конкурентам).",
+          {"page": {"type": "integer", "default": 1}, "limit": {"type": "integer", "default": 50}}),
     _tool("ozon_pricing_strategy_create",
-          "Создать стратегию ценообразования.",
-          {"strategy": {"type": "object", "description": "Параметры стратегии"}},
-          ["strategy"]),
-    _tool("ozon_pricing_strategy_update",
-          "Обновить стратегию ценообразования.",
-          {"strategy": {"type": "object"}},
-          ["strategy"]),
-    _tool("ozon_pricing_strategy_delete",
-          "Удалить стратегию ценообразования.",
-          {"strategy_id": {"type": "integer"}},
+          "[P1] Создать ценовую стратегию. competitors: [{competitor_id, coefficient}] (коэффициент 0.5-1.2 от цены конкурента).",
+          {"name": {"type": "string"},
+           "competitors": {"type": "array", "items": {"type": "object"}}},
+          ["name", "competitors"]),
+    _tool("ozon_pricing_strategy_info",
+          "[P2] Детали ценовой стратегии.",
+          {"strategy_id": {"type": "string"}},
           ["strategy_id"]),
-    _tool("ozon_pricing_currency_convert",
-          "Конвертация валют.",
-          {"currency_from": {"type": "string"}, "currency_to": {"type": "string"}, "amount": {"type": "number"}},
-          ["currency_from", "currency_to", "amount"]),
+    _tool("ozon_pricing_strategy_update",
+          "[P1] Обновить ценовую стратегию.",
+          {"strategy_id": {"type": "string"}, "name": {"type": "string"},
+           "competitors": {"type": "array", "items": {"type": "object"}}},
+          ["strategy_id", "name", "competitors"]),
+    _tool("ozon_pricing_strategy_delete",
+          "[P2] Удалить ценовую стратегию.",
+          {"strategy_id": {"type": "string"}},
+          ["strategy_id"]),
+    _tool("ozon_pricing_strategy_status",
+          "[P1] Включить/выключить ценовую стратегию.",
+          {"strategy_id": {"type": "string"}, "enabled": {"type": "boolean"}},
+          ["strategy_id", "enabled"]),
+    _tool("ozon_pricing_strategy_products",
+          "[P1] Товары стратегии: action=list | add | delete.",
+          {"action": {"type": "string", "description": "list | add | delete"},
+           "strategy_id": {"type": "string", "description": "Для list/add"},
+           "product_ids": {"type": "array", "items": {"type": "integer"}, "description": "Для add/delete"}},
+          ["action"]),
+    _tool("ozon_pricing_competitors",
+          "[P1] Список конкурентов (товары с других площадок) для ценовых стратегий.",
+          {"page": {"type": "integer", "default": 1}, "limit": {"type": "integer", "default": 50}}),
     _tool("ozon_pricing_competitor_prices",
-          "Цены конкурентов.",
-          {"product_id": {"type": "array", "items": {"type": "integer"}}},
+          "[P1] Цена товара у конкурента (для товаров в стратегиях).",
+          {"product_id": {"type": "integer"}},
           ["product_id"]),
 
     # === P0: ЦЕНЫ ===
@@ -203,9 +250,21 @@ TOOLS = [
           {"date_from": {"type": "string"}, "date_to": {"type": "string"}},
           ["date_from", "date_to"]),
     _tool("ozon_finance_realization",
-          "[P1] Отчёт о реализации за месяц.",
+          "[P1] Отчёт о реализации за месяц (v2).",
+          {"month": {"type": "integer", "description": "1-12"}, "year": {"type": "integer"}},
+          ["month", "year"]),
+    _tool("ozon_finance_mutual_settlement",
+          "[P1] Отчёт о взаиморасчётах за месяц.",
           {"date": {"type": "string", "description": "YYYY-MM"}},
           ["date"]),
+    _tool("ozon_finance_accruals",
+          "[P1] Начисления по дням.",
+          {"date": {"type": "string", "description": "YYYY-MM-DD"}},
+          ["date"]),
+    _tool("ozon_finance_balance",
+          "[P0] Баланс продавца за период: входящий/исходящий остаток, начисления, выплаты (Beta). Без дат — последние 30 дней.",
+          {"date_from": {"type": "string", "description": "YYYY-MM-DD (опц.)"},
+           "date_to": {"type": "string", "description": "YYYY-MM-DD (опц.)"}}),
     _tool("ozon_finance_cash_flow",
           "[P1] Движение денежных средств.",
           {"date_from": {"type": "string"}, "date_to": {"type": "string"}},
@@ -228,10 +287,10 @@ TOOLS = [
           "Ответить на отзыв.",
           {"review_id": {"type": "string"}, "text": {"type": "string"}},
           ["review_id", "text"]),
-    _tool("ozon_review_reply_update",
-          "Обновить ответ на отзыв.",
-          {"review_id": {"type": "string"}, "comment_id": {"type": "string"}, "text": {"type": "string"}},
-          ["review_id", "comment_id", "text"]),
+    _tool("ozon_review_comments",
+          "Комментарии к отзыву (метода «обновить ответ» в Ozon API нет — удалите и создайте заново).",
+          {"review_id": {"type": "string"}, "limit": {"type": "integer", "default": 20}},
+          ["review_id"]),
     _tool("ozon_review_reply_delete",
           "Удалить ответ на отзыв.",
           {"review_id": {"type": "string"}, "comment_id": {"type": "string"}},
@@ -239,9 +298,12 @@ TOOLS = [
 
     # === P0: РЕКЛАМА ===
     _tool("ozon_ad_campaigns",
-          "[P0] Список рекламных кампаний: бюджеты, ставки, статусы."),
+          "[P0] Список рекламных кампаний: бюджеты (микрорубли: 1000000=1₽), статусы. adv_object_type: SKU (трафареты) | SEARCH_PROMO (оплата за заказ) | BANNER. state: CAMPAIGN_STATE_RUNNING | _STOPPED | _INACTIVE.",
+          {"campaign_ids": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр (опц.)"},
+           "adv_object_type": {"type": "string", "description": "Фильтр по типу (опц.)"},
+           "state": {"type": "string", "description": "Фильтр по статусу (опц.)"}}),
     _tool("ozon_ad_statistics",
-          "[P0] Статистика по рекламным кампаниям: расходы, показы, клики, заказы, ДРР.",
+          "[P0] Статистика по кампаниям (асинхронный отчёт Ozon, ожидание до ~2 мин). ЛИМИТ: ≤10 кампаний, период ≤62 дня, 1 отчёт одновременно.",
           {"campaigns": {"type": "array", "items": {"type": "integer"}, "description": "ID кампаний"},
            "date_from": {"type": "string", "description": "YYYY-MM-DD"},
            "date_to": {"type": "string"},
@@ -256,25 +318,69 @@ TOOLS = [
           {"campaign_id": {"type": "integer"}},
           ["campaign_id"]),
     _tool("ozon_ad_campaign_create",
-          "Создать рекламную кампанию.",
-          {"title": {"type": "string"}, "campaign_type": {"type": "string"}, "products": {"type": "array", "items": {"type": "object"}}, "daily_budget": {"type": "number"}},
-          ["title", "campaign_type", "products"]),
+          "[P1] Создать CPC-кампанию «Трафареты» (единственный тип, создаваемый через API). placement: PLACEMENT_SEARCH_AND_CATEGORY | PLACEMENT_TOP_PROMOTION. strategy: MAX_CLICKS | TOP_MAX_CLICKS | TARGET_BIDS | TOP_PROMOTION | NO_AUTO_STRATEGY. Мин. бюджет: 2000₽ × SKU. Товары добавляются отдельно через ozon_ad_products_add.",
+          {"title": {"type": "string"},
+           "placement": {"type": "string", "default": "PLACEMENT_SEARCH_AND_CATEGORY"},
+           "strategy": {"type": "string", "default": "MAX_CLICKS"},
+           "daily_budget_rub": {"type": "number", "description": "Дневной бюджет в рублях"},
+           "weekly_budget_rub": {"type": "number", "description": "Недельный бюджет в рублях (опц.)"}},
+          ["title"]),
     _tool("ozon_ad_campaign_activate",
           "Запустить рекламную кампанию.",
           {"campaign_id": {"type": "integer"}},
           ["campaign_id"]),
     _tool("ozon_ad_campaign_bids",
-          "Обновить ставки рекламной кампании.",
+          "[P0] Обновить ставки товаров в кампании. bids: [{sku, bid}] — ставка в МИКРОРУБЛЯХ строкой (10000000 = 10₽).",
           {"campaign_id": {"type": "integer"}, "bids": {"type": "array", "items": {"type": "object"}}},
           ["campaign_id", "bids"]),
     _tool("ozon_ad_campaign_budget",
-          "Бюджет рекламной кампании.",
+          "[P1] Бюджет кампании (из списка кампаний; отдельного эндпоинта у Ozon нет).",
           {"campaign_id": {"type": "integer"}},
           ["campaign_id"]),
     _tool("ozon_ad_campaign_budget_update",
-          "Обновить бюджет кампании.",
-          {"campaign_id": {"type": "integer"}, "daily_budget": {"type": "number"}, "total_budget": {"type": "number"}},
-          ["campaign_id", "daily_budget"]),
+          "[P1] Изменить бюджет/период кампании (PATCH). Бюджеты в РУБЛЯХ.",
+          {"campaign_id": {"type": "integer"},
+           "daily_budget_rub": {"type": "number"},
+           "weekly_budget_rub": {"type": "number"},
+           "from_date": {"type": "string", "description": "YYYY-MM-DD (опц.)"},
+           "to_date": {"type": "string", "description": "YYYY-MM-DD (опц.)"}},
+          ["campaign_id"]),
+    _tool("ozon_ad_campaign_products",
+          "[P1] Товары и ставки в кампании.",
+          {"campaign_id": {"type": "integer"}, "page": {"type": "integer", "default": 1}},
+          ["campaign_id"]),
+    _tool("ozon_ad_products_add",
+          "[P1] Добавить товары в CPC-кампанию (≤500). bids: [{sku, bid}] в микрорублях; без bid — конкурентная ставка.",
+          {"campaign_id": {"type": "integer"}, "bids": {"type": "array", "items": {"type": "object"}}},
+          ["campaign_id", "bids"]),
+    _tool("ozon_ad_products_delete",
+          "[P1] Убрать товары из кампании.",
+          {"campaign_id": {"type": "integer"}, "skus": {"type": "array", "items": {"type": "integer"}}},
+          ["campaign_id", "skus"]),
+    _tool("ozon_ad_bids_competitive",
+          "[P1] Конкурентные ставки по SKU в кампании (≤200).",
+          {"campaign_id": {"type": "integer"}, "skus": {"type": "array", "items": {"type": "integer"}}},
+          ["campaign_id", "skus"]),
+    _tool("ozon_ad_min_bids",
+          "[P1] Минимальные ставки по SKU. payment_type: CPC | CPO | CPC_TOP.",
+          {"skus": {"type": "array", "items": {"type": "integer"}},
+           "payment_type": {"type": "string", "default": "CPC"}},
+          ["skus"]),
+    _tool("ozon_search_promo_products",
+          "[P0] Товары в «Оплате за заказ» (вывод в топ, CPO): ставки %, видимость. КРИТИЧНО: ставки фиксированные с 02.2025.",
+          {"page": {"type": "integer", "default": 1}}),
+    _tool("ozon_search_promo_enable",
+          "[P1] ВКЛЮЧИТЬ продвижение «Оплата за заказ» для товаров (≤1000 SKU).",
+          {"skus": {"type": "array", "items": {"type": "integer"}}},
+          ["skus"]),
+    _tool("ozon_search_promo_disable",
+          "[P0] ОТКЛЮЧИТЬ продвижение «Оплата за заказ» (≤1000 SKU). Используй при высоком ДРР.",
+          {"skus": {"type": "array", "items": {"type": "integer"}}},
+          ["skus"]),
+    _tool("ozon_search_promo_bids",
+          "[P1] Фиксированные ставки CPO по SKU (≤200).",
+          {"skus": {"type": "array", "items": {"type": "integer"}}},
+          ["skus"]),
     _tool("ozon_ad_statistics_daily",
           "Ежедневная статистика рекламы.",
           {"campaigns": {"type": "array", "items": {"type": "integer"}}, "date_from": {"type": "string"}, "date_to": {"type": "string"}},
@@ -283,19 +389,20 @@ TOOLS = [
           "Расходы по рекламным кампаниям.",
           {"campaigns": {"type": "array", "items": {"type": "integer"}}, "date_from": {"type": "string"}, "date_to": {"type": "string"}},
           ["campaigns", "date_from", "date_to"]),
-    _tool("ozon_ad_campaign_objects_update",
-          "Обновить товары в рекламной кампании.",
-          {"campaign_id": {"type": "integer"}, "objects": {"type": "array", "items": {"type": "object"}}},
-          ["campaign_id", "objects"]),
+    _tool("ozon_ad_statistics_products",
+          "[P0] Статистика CPC-кампаний по товарам: расход, CTR, CPC, заказы, ДРР (синхронно).",
+          {"campaigns": {"type": "array", "items": {"type": "integer"}},
+           "date_from": {"type": "string"}, "date_to": {"type": "string"}},
+          ["campaigns", "date_from", "date_to"]),
     _tool("ozon_ad_balance",
-          "Баланс рекламного кабинета."),
+          "Баланс рекламного кабинета (официального метода нет — см. расходы в ozon_ad_statistics_expenses)."),
 
     # === P1: АНАЛИТИКА ===
     _tool("ozon_analytics",
-          "[P1] Аналитика: выручка, заказы, возвраты, конверсия по SKU.",
+          "[P1] Аналитика по SKU. ВНИМАНИЕ: метрики воронки (session_view, hits_view, position_category) Ozon пометил deprecated — работают торговые: revenue, ordered_units, delivered_units, returns, cancellations. Для позиций в поиске — ozon_product_queries.",
           {"date_from": {"type": "string"}, "date_to": {"type": "string"},
-           "metrics": {"type": "array", "items": {"type": "string"}, "description": "revenue, ordered_units, returns_count, session_view, etc."},
-           "dimensions": {"type": "array", "items": {"type": "string"}, "description": "sku, day, week, month, etc."},
+           "metrics": {"type": "array", "items": {"type": "string"}, "description": "revenue, ordered_units, delivered_units, returns, cancellations"},
+           "dimensions": {"type": "array", "items": {"type": "string"}, "description": "sku, day, week, month"},
            "limit": {"type": "integer", "default": 1000}},
           ["date_from", "date_to", "metrics", "dimensions"]),
     _tool("ozon_stock_on_warehouses",
@@ -305,6 +412,31 @@ TOOLS = [
           "[P1] Аналитика по остаткам конкретных товаров: доступность, дефицитность, ликвидность (1-100 SKU).",
           {"skus": {"type": "array", "items": {"type": "integer"}, "description": "SKU товаров (1-100)"}},
           ["skus"]),
+    _tool("ozon_product_queries",
+          "[P0] Поисковые запросы и позиции моих товаров в поиске Ozon (Premium). КРИТИЧНО: видимость в поиске = продажи.",
+          {"date_from": {"type": "string", "description": "YYYY-MM-DD"},
+           "skus": {"type": "array", "items": {"type": "integer"}},
+           "details": {"type": "boolean", "default": False, "description": "true = детализация по запросам"}},
+          ["date_from", "skus"]),
+    _tool("ozon_search_queries_top",
+          "[P1] Популярные поисковые запросы на Ozon (для SEO карточек).",
+          {"limit": {"type": "integer", "default": 50}}),
+
+    # === ПОСТАВКИ FBO ===
+    _tool("ozon_supply_orders",
+          "[P1] Заявки на поставку FBO (v3, возвращает order_ids — детали через ozon_supply_order_get).",
+          {"states": {"type": "array", "items": {"type": "integer"}, "description": "Целочисленные коды статусов 1-8 (опц., по умолчанию все)"},
+           "limit": {"type": "integer", "default": 50}}),
+    _tool("ozon_supply_order_get",
+          "[P2] Детали заявок на поставку FBO (1-50).",
+          {"order_ids": {"type": "array", "items": {"type": "integer"}}},
+          ["order_ids"]),
+    _tool("ozon_supply_order_counters",
+          "[P2] Счётчики заявок на поставку по статусам."),
+    _tool("ozon_supply_order_timeslots",
+          "[P2] Доступные таймслоты для поставки FBO.",
+          {"supply_order_id": {"type": "integer"}},
+          ["supply_order_id"]),
 
     # === P1: ТОВАРЫ ===
     _tool("ozon_product_list",
@@ -364,9 +496,9 @@ TOOLS = [
           {"product_id": {"type": "array", "items": {"type": "integer"}}},
           ["product_id"]),
     _tool("ozon_product_delete",
-          "Удалить товары без продаж.",
-          {"product_id": {"type": "array", "items": {"type": "integer"}}},
-          ["product_id"]),
+          "Удалить товары без SKU из архива (по артикулам).",
+          {"offer_ids": {"type": "array", "items": {"type": "string"}}},
+          ["offer_ids"]),
     _tool("ozon_product_limits",
           "Лимиты на создание товаров."),
     _tool("ozon_product_rating_by_sku",
@@ -374,9 +506,23 @@ TOOLS = [
           {"skus": {"type": "array", "items": {"type": "integer"}}},
           ["skus"]),
     _tool("ozon_product_discounted",
-          "Уценённые товары.",
-          {"product_id": {"type": "array", "items": {"type": "integer"}}},
-          ["product_id"]),
+          "Информация об уценке по SKU уценённых товаров.",
+          {"discounted_skus": {"type": "array", "items": {"type": "integer"}}},
+          ["discounted_skus"]),
+    _tool("ozon_product_attributes_update",
+          "[P1] Обновить характеристики товаров (без полной перезаливки карточки).",
+          {"items": {"type": "array", "items": {"type": "object"},
+                     "description": "[{offer_id, attributes: [{id, values}]}]"}},
+          ["items"]),
+    _tool("ozon_product_import_by_sku",
+          "[P2] Создать товар-копию по SKU существующего товара Ozon.",
+          {"items": {"type": "array", "items": {"type": "object"},
+                     "description": "[{sku, name, offer_id, price, old_price, vat, currency_code}]"}},
+          ["items"]),
+    _tool("ozon_product_stocks_by_warehouse",
+          "[P1] Остатки товаров по складам FBS (v2; v1 отключается 07.04.2026).",
+          {"skus": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр (опц.)"},
+           "limit": {"type": "integer", "default": 100}}),
 
     # === ЗАКАЗЫ FBS ===
     _tool("ozon_orders_fbs",
@@ -388,9 +534,16 @@ TOOLS = [
           {"posting_number": {"type": "string"}},
           ["posting_number"]),
     _tool("ozon_order_fbs_ship",
-          "Отгрузить отправление FBS.",
+          "Собрать заказ FBS (v4). packages: [{products: [{product_id, quantity}]}].",
           {"posting_number": {"type": "string"}, "packages": {"type": "array", "items": {"type": "object"}}},
           ["posting_number", "packages"]),
+    _tool("ozon_orders_fbs_unfulfilled",
+          "[P1] Несобранные заказы FBS (ожидают сборки).",
+          {"limit": {"type": "integer", "default": 100}}),
+    _tool("ozon_order_fbs_label",
+          "[P1] Этикетки отправлений FBS (PDF base64).",
+          {"posting_numbers": {"type": "array", "items": {"type": "string"}}},
+          ["posting_numbers"]),
     _tool("ozon_order_fbs_cancel",
           "Отменить отправление FBS.",
           {"posting_number": {"type": "string"}, "cancel_reason_id": {"type": "integer"}, "cancel_reason_message": {"type": "string"}},
@@ -409,7 +562,7 @@ TOOLS = [
           {"id": {"type": "integer"}},
           ["id"]),
     _tool("ozon_order_fbs_digital_act",
-          "Создать электронный акт.",
+          "Статус акта (цифровые акты удалены Ozon 22.03.2026 — используется обычный акт).",
           {"id": {"type": "integer"}},
           ["id"]),
     _tool("ozon_order_fbs_country_list",
@@ -443,25 +596,29 @@ TOOLS = [
 
     # === ВОЗВРАТЫ ===
     _tool("ozon_returns_fbo",
-          "Возвраты FBO.",
-          {"filter": {"type": "object"}, "limit": {"type": "integer", "default": 50}},
-          ["filter"]),
+          "[P1] ЕДИНЫЙ список возвратов FBO+FBS (/v1/returns/list; старые returns/company/* отключены Ozon).",
+          {"filter": {"type": "object", "description": "Фильтр (опц.)"},
+           "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_returns_fbs",
-          "Возвраты FBS.",
-          {"filter": {"type": "object"}, "limit": {"type": "integer", "default": 50}},
-          ["filter"]),
+          "[P1] Заявки покупателей на возврат rFBS (требуют решения продавца!).",
+          {"limit": {"type": "integer", "default": 100}}),
+    _tool("ozon_returns_fbs_get",
+          "[P1] Детали заявки на возврат rFBS.",
+          {"return_id": {"type": "integer"}},
+          ["return_id"]),
     _tool("ozon_returns_fbs_approve",
-          "Одобрить возврат FBS.",
+          "[P1] Одобрить заявку rFBS (verify — согласовать возврат).",
           {"return_id": {"type": "integer"}},
           ["return_id"]),
     _tool("ozon_returns_fbs_reject",
-          "Отклонить возврат FBS.",
+          "[P1] Отклонить заявку rFBS (комментарий обязателен).",
           {"return_id": {"type": "integer"}, "reason": {"type": "string"}},
           ["return_id", "reason"]),
-    _tool("ozon_returns_fbs_get",
-          "Детали возврата FBS.",
-          {"return_id": {"type": "integer"}},
-          ["return_id"]),
+    _tool("ozon_returns_rfbs_action",
+          "[P1] Действие по заявке rFBS: receive-return (подтвердить получение товара), return-money (вернуть деньги), compensate (компенсация без возврата).",
+          {"action": {"type": "string", "description": "receive-return | return-money | compensate"},
+           "return_id": {"type": "integer"}, "comment": {"type": "string"}},
+          ["action", "return_id"]),
 
     # === P1: ВОЗВРАТЫ (LEGACY) ===
     _tool("ozon_returns_report",
@@ -474,9 +631,9 @@ TOOLS = [
           "Список вопросов покупателей.",
           {"limit": {"type": "integer", "default": 50}, "last_id": {"type": "string"}}),
     _tool("ozon_question_reply",
-          "Ответить на вопрос покупателя.",
-          {"question_id": {"type": "string"}, "text": {"type": "string"}},
-          ["question_id", "text"]),
+          "Ответить на вопрос покупателя (нужен sku товара).",
+          {"question_id": {"type": "string"}, "sku": {"type": "integer"}, "text": {"type": "string"}},
+          ["question_id", "sku", "text"]),
 
     # === ЧАТЫ ===
     _tool("ozon_chat_list",
@@ -509,11 +666,10 @@ TOOLS = [
 
     # === ОТМЕНЫ ===
     _tool("ozon_cancellation_list",
-          "Заявки на отмену от покупателей.",
-          {"posting_number": {"type": "string", "description": "Фильтр по номеру отправления (опц.)"},
-           "status": {"type": "string", "default": "ON_APPROVAL", "description": "ON_APPROVAL, APPROVED, REJECTED"},
-           "page": {"type": "integer", "default": 1},
-           "page_size": {"type": "integer", "default": 50}}),
+          "[P1] Заявки покупателей на отмену (v2). state: ALL | ON_APPROVAL | APPROVED | REJECTED.",
+          {"posting_number": {"type": "string", "description": "Фильтр (опц.)"},
+           "state": {"type": "string", "default": "ON_APPROVAL"},
+           "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_cancellation_approve",
           "Одобрить заявку на отмену.",
           {"cancellation_id": {"type": "integer"}, "comment": {"type": "string"}},
@@ -572,25 +728,24 @@ TOOLS = [
 
     # === УВЕДОМЛЕНИЯ ===
     _tool("ozon_notifications",
-          "Список уведомлений.",
-          {"limit": {"type": "integer", "default": 50}}),
-    _tool("ozon_notification_read",
-          "Пометить уведомления как прочитанные.",
-          {"notification_ids": {"type": "array", "items": {"type": "string"}}},
-          ["notification_ids"]),
+          "Подписки на push-уведомления (вебхуки). Старого «списка уведомлений» в Ozon API нет."),
+    _tool("ozon_notification_push_types",
+          "Справочник типов push-событий (новые сообщения, статусы отправлений и т.д.)."),
 
     # === СКИДКИ ===
     _tool("ozon_discount_tasks",
-          "Заявки покупателей 'Хочу скидку'.",
-          {"limit": {"type": "integer", "default": 50}}),
+          "[P1] Заявки покупателей «Хочу скидку». status: NEW | SEEN | APPROVED | PARTLY_APPROVED | DECLINED | AUTO_DECLINED.",
+          {"status": {"type": "string", "default": "NEW"},
+           "limit": {"type": "integer", "default": 50, "description": "5/10/15/20/30/50"}}),
     _tool("ozon_discount_approve",
-          "Одобрить заявку на скидку.",
-          {"task_id": {"type": "integer"}, "price": {"type": "number"}},
-          ["task_id", "price"]),
+          "[P1] Одобрить заявки на скидку.",
+          {"tasks": {"type": "array", "items": {"type": "object"},
+                     "description": "[{id, approved_price, seller_comment, approved_quantity_min, approved_quantity_max}]"}},
+          ["tasks"]),
     _tool("ozon_discount_decline",
-          "Отклонить заявку на скидку.",
-          {"task_id": {"type": "integer"}},
-          ["task_id"]),
+          "[P1] Отклонить заявки на скидку.",
+          {"tasks": {"type": "array", "items": {"type": "object"}, "description": "[{id, seller_comment}]"}},
+          ["tasks"]),
 
     # === КОМПАНИЯ ===
     _tool("ozon_company_info",
@@ -691,25 +846,54 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
     if name == "ozon_actions_list":
         return _json(await s.actions_list())
     if name == "ozon_actions_candidates":
-        return _json(await s.actions_candidates(arguments["action_id"]))
+        return _json(await s.actions_candidates(arguments["action_id"], limit=arguments.get("limit", 100)))
     if name == "ozon_actions_products":
-        return _json(await s.actions_products(arguments["action_id"]))
+        return _json(await s.actions_products(arguments["action_id"], limit=arguments.get("limit", 100)))
     if name == "ozon_actions_activate":
         return _json(await s.actions_products_activate(arguments["action_id"], arguments["products"]))
+    if name == "ozon_actions_deactivate":
+        return _json(await s.actions_products_deactivate(arguments["action_id"], arguments["product_ids"]))
+
+    # === СОБСТВЕННЫЕ АКЦИИ ПРОДАВЦА ===
+    if name == "ozon_seller_actions":
+        return _json(await s.seller_actions_list(status=arguments.get("status"), limit=arguments.get("limit", 50)))
+    if name == "ozon_seller_action_create":
+        return _json(await s.seller_action_create_discount(
+            arguments["title"], arguments["date_start"], arguments["date_end"],
+            arguments["min_action_percent"]))
+    if name == "ozon_seller_action_toggle":
+        return _json(await s.seller_action_toggle(arguments["action_id"], arguments["is_turn_on"]))
+    if name == "ozon_seller_action_products":
+        return _json(await s.seller_action_products(arguments["action_id"], limit=arguments.get("limit", 100)))
+    if name == "ozon_seller_action_products_add":
+        return _json(await s.seller_action_products_add(arguments["action_id"], arguments["products"]))
+    if name == "ozon_seller_action_products_delete":
+        return _json(await s.seller_action_products_delete(arguments["action_id"], arguments["product_ids"]))
 
     # === ЦЕНОВЫЕ СТРАТЕГИИ ===
     if name == "ozon_pricing_strategy_list":
-        return _json(await s.pricing_strategy_list(arguments["product_id"]))
+        return _json(await s.pricing_strategy_list(page=arguments.get("page", 1), limit=arguments.get("limit", 50)))
     if name == "ozon_pricing_strategy_create":
-        return _json(await s.pricing_strategy_create(arguments["strategy"]))
+        return _json(await s.pricing_strategy_create(arguments["name"], arguments["competitors"]))
+    if name == "ozon_pricing_strategy_info":
+        return _json(await s.pricing_strategy_info(arguments["strategy_id"]))
     if name == "ozon_pricing_strategy_update":
-        return _json(await s.pricing_strategy_update(arguments["strategy"]))
+        return _json(await s.pricing_strategy_update(arguments["strategy_id"], arguments["name"], arguments["competitors"]))
     if name == "ozon_pricing_strategy_delete":
         return _json(await s.pricing_strategy_delete(arguments["strategy_id"]))
-    if name == "ozon_pricing_currency_convert":
-        return _json(await s.pricing_currency_convert(arguments["currency_from"], arguments["currency_to"], arguments["amount"]))
+    if name == "ozon_pricing_strategy_status":
+        return _json(await s.pricing_strategy_status(arguments["strategy_id"], arguments["enabled"]))
+    if name == "ozon_pricing_strategy_products":
+        action = arguments["action"]
+        if action == "add":
+            return _json(await s.pricing_strategy_products_add(arguments["strategy_id"], arguments["product_ids"]))
+        if action == "delete":
+            return _json(await s.pricing_strategy_products_delete(arguments["product_ids"]))
+        return _json(await s.pricing_strategy_products_list(arguments["strategy_id"]))
+    if name == "ozon_pricing_competitors":
+        return _json(await s.pricing_competitors_list(page=arguments.get("page", 1), limit=arguments.get("limit", 50)))
     if name == "ozon_pricing_competitor_prices":
-        return _json(await s.pricing_competitor_prices(arguments["product_id"]))
+        return _json(await s.pricing_competitor_price(arguments["product_id"]))
 
     # === ЦЕНЫ ===
     if name == "ozon_set_prices":
@@ -740,7 +924,14 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
     if name == "ozon_finance_totals":
         return _json(await s.finance_transaction_totals(arguments["date_from"], arguments["date_to"]))
     if name == "ozon_finance_realization":
-        return _json(await s.finance_realization(arguments["date"]))
+        return _json(await s.finance_realization(arguments["month"], arguments["year"]))
+    if name == "ozon_finance_mutual_settlement":
+        return _json(await s.finance_mutual_settlement(arguments["date"]))
+    if name == "ozon_finance_accruals":
+        return _json(await s.finance_accrual_by_day(arguments["date"]))
+    if name == "ozon_finance_balance":
+        return _json(await s.finance_balance(date_from=arguments.get("date_from", ""),
+                                             date_to=arguments.get("date_to", "")))
     if name == "ozon_finance_cash_flow":
         return _json(await s.finance_cash_flow(arguments["date_from"], arguments["date_to"]))
 
@@ -758,15 +949,19 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         ))
     if name == "ozon_review_reply":
         return _json(await s.review_comment_create(arguments["review_id"], arguments["text"]))
-    if name == "ozon_review_reply_update":
-        return _json(await s.review_comment_update(arguments["review_id"], arguments["comment_id"], arguments["text"]))
+    if name == "ozon_review_comments":
+        return _json(await s.review_comment_list(arguments["review_id"], limit=arguments.get("limit", 20)))
     if name == "ozon_review_reply_delete":
         return _json(await s.review_comment_delete(arguments["review_id"], arguments["comment_id"]))
 
     # === РЕКЛАМА ===
     if name == "ozon_ad_campaigns":
         p = _get_perf(shop_id)
-        return _json(await p.campaigns_list())
+        return _json(await p.campaigns_list(
+            campaign_ids=arguments.get("campaign_ids"),
+            adv_object_type=arguments.get("adv_object_type"),
+            state=arguments.get("state"),
+        ))
     if name == "ozon_ad_statistics":
         p = _get_perf(shop_id)
         return _json(await p.statistics(
@@ -781,28 +976,67 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await p.campaign_objects(arguments["campaign_id"]))
     if name == "ozon_ad_campaign_create":
         p = _get_perf(shop_id)
-        return _json(await p.campaign_create(arguments["title"], arguments["campaign_type"], arguments["products"], arguments.get("daily_budget", 0)))
+        return _json(await p.campaign_create(
+            arguments["title"],
+            placement=arguments.get("placement", "PLACEMENT_SEARCH_AND_CATEGORY"),
+            autopilot_strategy=arguments.get("strategy", "MAX_CLICKS"),
+            daily_budget_rub=arguments.get("daily_budget_rub", 0),
+            weekly_budget_rub=arguments.get("weekly_budget_rub", 0),
+        ))
     if name == "ozon_ad_campaign_activate":
         p = _get_perf(shop_id)
         return _json(await p.campaign_activate(arguments["campaign_id"]))
     if name == "ozon_ad_campaign_bids":
         p = _get_perf(shop_id)
-        return _json(await p.campaign_update_bids(arguments["campaign_id"], arguments["bids"]))
+        return _json(await p.campaign_products_update(arguments["campaign_id"], arguments["bids"]))
     if name == "ozon_ad_campaign_budget":
         p = _get_perf(shop_id)
-        return _json(await p.campaign_budget(arguments["campaign_id"]))
+        return _json(await p.campaigns_list(campaign_ids=[arguments["campaign_id"]]))
     if name == "ozon_ad_campaign_budget_update":
         p = _get_perf(shop_id)
-        return _json(await p.campaign_update_budget(arguments["campaign_id"], arguments["daily_budget"], arguments.get("total_budget", 0)))
+        return _json(await p.campaign_update(
+            arguments["campaign_id"],
+            daily_budget_rub=arguments.get("daily_budget_rub"),
+            weekly_budget_rub=arguments.get("weekly_budget_rub"),
+            from_date=arguments.get("from_date", ""),
+            to_date=arguments.get("to_date", ""),
+        ))
+    if name == "ozon_ad_campaign_products":
+        p = _get_perf(shop_id)
+        return _json(await p.campaign_products_list(arguments["campaign_id"], page=arguments.get("page", 1)))
+    if name == "ozon_ad_products_add":
+        p = _get_perf(shop_id)
+        return _json(await p.campaign_products_add(arguments["campaign_id"], arguments["bids"]))
+    if name == "ozon_ad_products_delete":
+        p = _get_perf(shop_id)
+        return _json(await p.campaign_products_delete(arguments["campaign_id"], arguments["skus"]))
+    if name == "ozon_ad_bids_competitive":
+        p = _get_perf(shop_id)
+        return _json(await p.bids_competitive(arguments["campaign_id"], arguments["skus"]))
+    if name == "ozon_ad_min_bids":
+        p = _get_perf(shop_id)
+        return _json(await p.min_sku_bids(arguments["skus"], payment_type=arguments.get("payment_type", "CPC")))
+    if name == "ozon_search_promo_products":
+        p = _get_perf(shop_id)
+        return _json(await p.search_promo_products(page=arguments.get("page", 1)))
+    if name == "ozon_search_promo_enable":
+        p = _get_perf(shop_id)
+        return _json(await p.search_promo_enable(arguments["skus"]))
+    if name == "ozon_search_promo_disable":
+        p = _get_perf(shop_id)
+        return _json(await p.search_promo_disable(arguments["skus"]))
+    if name == "ozon_search_promo_bids":
+        p = _get_perf(shop_id)
+        return _json(await p.search_promo_cpo_bids(arguments["skus"]))
+    if name == "ozon_ad_statistics_products":
+        p = _get_perf(shop_id)
+        return _json(await p.statistics_products(arguments["campaigns"], arguments["date_from"], arguments["date_to"]))
     if name == "ozon_ad_statistics_daily":
         p = _get_perf(shop_id)
         return _json(await p.statistics_daily(arguments["campaigns"], arguments["date_from"], arguments["date_to"]))
     if name == "ozon_ad_statistics_expenses":
         p = _get_perf(shop_id)
         return _json(await p.statistics_expenses(arguments["campaigns"], arguments["date_from"], arguments["date_to"]))
-    if name == "ozon_ad_campaign_objects_update":
-        p = _get_perf(shop_id)
-        return _json(await p.campaign_objects_update(arguments["campaign_id"], arguments["objects"]))
     if name == "ozon_ad_balance":
         p = _get_perf(shop_id)
         return _json(await p.balance())
@@ -863,13 +1097,20 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
     if name == "ozon_product_unarchive":
         return _json(await s.product_unarchive(arguments["product_id"]))
     if name == "ozon_product_delete":
-        return _json(await s.product_delete(arguments["product_id"]))
+        return _json(await s.product_delete(arguments["offer_ids"]))
+    if name == "ozon_product_attributes_update":
+        return _json(await s.product_attributes_update(arguments["items"]))
+    if name == "ozon_product_import_by_sku":
+        return _json(await s.product_import_by_sku(arguments["items"]))
+    if name == "ozon_product_stocks_by_warehouse":
+        return _json(await s.product_stocks_by_warehouse(
+            skus=arguments.get("skus"), limit=arguments.get("limit", 100)))
     if name == "ozon_product_limits":
         return _json(await s.product_info_limit())
     if name == "ozon_product_rating_by_sku":
         return _json(await s.product_rating_by_sku(arguments["skus"]))
     if name == "ozon_product_discounted":
-        return _json(await s.product_info_discounted(arguments["product_id"]))
+        return _json(await s.product_info_discounted(arguments["discounted_skus"]))
 
     # === ЗАКАЗЫ FBS ===
     if name == "ozon_orders_fbs":
@@ -882,6 +1123,10 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await s.posting_fbs_get(arguments["posting_number"]))
     if name == "ozon_order_fbs_ship":
         return _json(await s.posting_fbs_ship(arguments["posting_number"], arguments["packages"]))
+    if name == "ozon_orders_fbs_unfulfilled":
+        return _json(await s.posting_fbs_unfulfilled(limit=arguments.get("limit", 100)))
+    if name == "ozon_order_fbs_label":
+        return _json(await s.posting_fbs_package_label(arguments["posting_numbers"]))
     if name == "ozon_order_fbs_cancel":
         return _json(await s.posting_fbs_cancel(arguments["posting_number"], arguments["cancel_reason_id"], arguments.get("cancel_reason_message", "")))
     if name == "ozon_order_fbs_cancel_reasons":
@@ -914,15 +1159,18 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
 
     # === ВОЗВРАТЫ ===
     if name == "ozon_returns_fbo":
-        return _json(await s.returns_fbo_list(arguments["filter"], limit=arguments.get("limit", 50)))
+        return _json(await s.returns_list(arguments.get("filter"), limit=arguments.get("limit", 100)))
     if name == "ozon_returns_fbs":
-        return _json(await s.returns_fbs_list(arguments["filter"], limit=arguments.get("limit", 50)))
+        return _json(await s.returns_rfbs_list(limit=arguments.get("limit", 100)))
     if name == "ozon_returns_fbs_approve":
-        return _json(await s.returns_fbs_approve(arguments["return_id"]))
+        return _json(await s.returns_rfbs_action("verify", arguments["return_id"]))
     if name == "ozon_returns_fbs_reject":
-        return _json(await s.returns_fbs_reject(arguments["return_id"], arguments["reason"]))
+        return _json(await s.returns_rfbs_action("reject", arguments["return_id"], comment=arguments["reason"]))
     if name == "ozon_returns_fbs_get":
-        return _json(await s.returns_fbs_get(arguments["return_id"]))
+        return _json(await s.returns_rfbs_get(arguments["return_id"]))
+    if name == "ozon_returns_rfbs_action":
+        return _json(await s.returns_rfbs_action(arguments["action"], arguments["return_id"],
+                                                 comment=arguments.get("comment", "")))
     if name == "ozon_returns_report":
         return _json(await s.report_returns_create(arguments["filter"]))
 
@@ -930,7 +1178,7 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
     if name == "ozon_questions":
         return _json(await s.question_list(limit=arguments.get("limit", 50), last_id=arguments.get("last_id", "")))
     if name == "ozon_question_reply":
-        return _json(await s.question_reply(arguments["question_id"], arguments["text"]))
+        return _json(await s.question_reply(arguments["question_id"], arguments["sku"], arguments["text"]))
 
     # === ЧАТЫ ===
     if name == "ozon_chat_list":
@@ -955,9 +1203,8 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
     if name == "ozon_cancellation_list":
         return _json(await s.conditional_cancellation_list(
             posting_number=arguments.get("posting_number", ""),
-            status=arguments.get("status", "ON_APPROVAL"),
-            page=arguments.get("page", 1),
-            page_size=arguments.get("page_size", 50),
+            state=arguments.get("state", "ON_APPROVAL"),
+            limit=arguments.get("limit", 100),
         ))
     if name == "ozon_cancellation_approve":
         return _json(await s.conditional_cancellation_approve(arguments["cancellation_id"], arguments.get("comment", "")))
@@ -1000,17 +1247,34 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
 
     # === УВЕДОМЛЕНИЯ ===
     if name == "ozon_notifications":
-        return _json(await s.notification_list(limit=arguments.get("limit", 50)))
-    if name == "ozon_notification_read":
-        return _json(await s.notification_mark_read(arguments["notification_ids"]))
+        return _json(await s.notification_list())
+    if name == "ozon_notification_push_types":
+        return _json(await s.notification_push_types())
+
+    # === АНАЛИТИКА ПОИСКА И ПОСТАВКИ FBO ===
+    if name == "ozon_product_queries":
+        if arguments.get("details"):
+            return _json(await s.product_queries_details(arguments["date_from"], arguments["skus"]))
+        return _json(await s.product_queries(arguments["date_from"], arguments["skus"]))
+    if name == "ozon_search_queries_top":
+        return _json(await s.search_queries_top(limit=arguments.get("limit", 50)))
+    if name == "ozon_supply_orders":
+        return _json(await s.supply_orders_list(states=arguments.get("states"), limit=arguments.get("limit", 50)))
+    if name == "ozon_supply_order_get":
+        return _json(await s.supply_orders_get(arguments["order_ids"]))
+    if name == "ozon_supply_order_counters":
+        return _json(await s.supply_order_status_counter())
+    if name == "ozon_supply_order_timeslots":
+        return _json(await s.supply_order_timeslots(arguments["supply_order_id"]))
 
     # === СКИДКИ ===
     if name == "ozon_discount_tasks":
-        return _json(await s.discount_task_list(limit=arguments.get("limit", 50)))
+        return _json(await s.discount_task_list(
+            status=arguments.get("status", "NEW"), limit=arguments.get("limit", 50)))
     if name == "ozon_discount_approve":
-        return _json(await s.discount_task_approve(arguments["task_id"], arguments["price"]))
+        return _json(await s.discount_task_approve(arguments["tasks"]))
     if name == "ozon_discount_decline":
-        return _json(await s.discount_task_decline(arguments["task_id"]))
+        return _json(await s.discount_task_decline(arguments["tasks"]))
 
     # === КОМПАНИЯ ===
     if name == "ozon_company_info":

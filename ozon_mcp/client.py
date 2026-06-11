@@ -34,41 +34,125 @@ class OzonSellerClient:
         """GET /v1/actions — список доступных акций."""
         return await self._get("/v1/actions")
 
-    async def actions_candidates(self, action_id: int) -> dict:
+    async def actions_candidates(self, action_id: int, limit: int = 100, last_id: str = "") -> dict:
         """POST /v1/actions/candidates — товары-кандидаты в акцию."""
-        return await self._post("/v1/actions/candidates", {"action_id": action_id})
+        body = {"action_id": action_id, "limit": limit}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v1/actions/candidates", body)
 
-    async def actions_products(self, action_id: int) -> dict:
+    async def actions_products(self, action_id: int, limit: int = 100, last_id: str = "") -> dict:
         """POST /v1/actions/products — товары уже в акции."""
-        return await self._post("/v1/actions/products", {"action_id": action_id})
+        body = {"action_id": action_id, "limit": limit}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v1/actions/products", body)
 
     async def actions_products_activate(
         self, action_id: int, products: list[dict]
     ) -> dict:
-        """POST /v1/actions/products/activate — добавить/убрать товар из акции."""
+        """POST /v1/actions/products/activate — добавить товары в акцию."""
         return await self._post(
             "/v1/actions/products/activate",
             {"action_id": action_id, "products": products},
         )
 
-    # ── Ценовые стратегии ──────────────────────────────────
-    async def pricing_strategy_list(self, product_id: list[int]) -> dict:
-        return {"error": "Endpoint /v1/pricing/strategy/list не существует в публичном Ozon API. Управление стратегиями доступно только через интерфейс Ozon."}
+    async def actions_products_deactivate(self, action_id: int, product_ids: list[int]) -> dict:
+        """POST /v1/actions/products/deactivate — убрать товары из акции."""
+        return await self._post(
+            "/v1/actions/products/deactivate",
+            {"action_id": action_id, "product_ids": product_ids},
+        )
 
-    async def pricing_strategy_create(self, strategy: dict) -> dict:
-        return {"error": "Endpoint не существует в публичном Ozon API."}
+    # ── Собственные акции продавца (/v1/seller-actions/*) ──
+    async def seller_actions_list(self, status: str | None = None, limit: int = 50, offset: int = 0) -> dict:
+        """POST /v1/seller-actions/list — список собственных акций продавца."""
+        body: dict[str, Any] = {"limit": limit, "offset": offset}
+        if status:
+            body["status"] = status
+        return await self._post("/v1/seller-actions/list", body)
 
-    async def pricing_strategy_update(self, strategy: dict) -> dict:
-        return {"error": "Endpoint не существует в публичном Ozon API."}
+    async def seller_action_create_discount(self, title: str, date_start: str, date_end: str,
+                                            min_action_percent: int) -> dict:
+        """POST /v1/seller-actions/create/discount — создать собственную акцию-скидку."""
+        return await self._post("/v1/seller-actions/create/discount", {
+            "title": title, "date_start": date_start, "date_end": date_end,
+            "min_action_percent": min_action_percent,
+        })
 
-    async def pricing_strategy_delete(self, strategy_id: int) -> dict:
-        return {"error": "Endpoint не существует в публичном Ozon API."}
+    async def seller_action_toggle(self, action_id: int, is_turn_on: bool) -> dict:
+        """POST /v1/seller-actions/change-activity — включить/выключить собственную акцию."""
+        return await self._post("/v1/seller-actions/change-activity",
+                                {"action_id": action_id, "is_turn_on": is_turn_on})
 
-    async def pricing_currency_convert(self, currency_from: str, currency_to: str, amount: float) -> dict:
-        return {"error": "Endpoint /v1/pricing/currency/convert не существует в публичном Ozon API."}
+    async def seller_action_products(self, action_id: int, limit: int = 100, cursor: str = "") -> dict:
+        """POST /v1/seller-actions/products/list — товары собственной акции."""
+        body: dict[str, Any] = {"action_id": action_id, "limit": limit}
+        if cursor:
+            body["cursor"] = cursor
+        return await self._post("/v1/seller-actions/products/list", body)
 
-    async def pricing_competitor_prices(self, product_id: list[int]) -> dict:
-        return {"error": "Endpoint /v1/pricing/competitor/prices не существует в публичном Ozon API. Анализ конкурентов доступен только через интерфейс Ozon Seller."}
+    async def seller_action_products_add(self, action_id: int, products: list[dict]) -> dict:
+        """POST /v1/seller-actions/products/add — добавить товары в собственную акцию."""
+        return await self._post("/v1/seller-actions/products/add",
+                                {"action_id": action_id, "products": products})
+
+    async def seller_action_products_delete(self, action_id: int, product_ids: list[int]) -> dict:
+        """POST /v1/seller-actions/products/delete — убрать товары из собственной акции."""
+        return await self._post("/v1/seller-actions/products/delete",
+                                {"action_id": action_id, "product_ids": product_ids})
+
+    # ── Ценовые стратегии (/v1/pricing-strategy/*) ─────────
+    async def pricing_strategy_list(self, page: int = 1, limit: int = 25) -> dict:
+        """POST /v1/pricing-strategy/list — список ценовых стратегий (limit строго < 50)."""
+        return await self._post("/v1/pricing-strategy/list", {"page": page, "limit": min(limit, 49)})
+
+    async def pricing_strategy_create(self, name: str, competitors: list[dict]) -> dict:
+        """POST /v1/pricing-strategy/create — создать стратегию.
+
+        competitors: [{"competitor_id": 123, "coefficient": 1.0}] (0.5-1.2).
+        """
+        return await self._post("/v1/pricing-strategy/create",
+                                {"strategy_name": name, "competitors": competitors})
+
+    async def pricing_strategy_info(self, strategy_id: str) -> dict:
+        """POST /v1/pricing-strategy/info — детали стратегии."""
+        return await self._post("/v1/pricing-strategy/info", {"strategy_id": strategy_id})
+
+    async def pricing_strategy_update(self, strategy_id: str, name: str, competitors: list[dict]) -> dict:
+        """POST /v1/pricing-strategy/update — обновить стратегию."""
+        return await self._post("/v1/pricing-strategy/update",
+                                {"strategy_id": strategy_id, "strategy_name": name, "competitors": competitors})
+
+    async def pricing_strategy_delete(self, strategy_id: str) -> dict:
+        """POST /v1/pricing-strategy/delete — удалить стратегию."""
+        return await self._post("/v1/pricing-strategy/delete", {"strategy_id": strategy_id})
+
+    async def pricing_strategy_status(self, strategy_id: str, enabled: bool) -> dict:
+        """POST /v1/pricing-strategy/status — включить/выключить стратегию."""
+        return await self._post("/v1/pricing-strategy/status",
+                                {"strategy_id": strategy_id, "enabled": enabled})
+
+    async def pricing_strategy_products_add(self, strategy_id: str, product_ids: list[int]) -> dict:
+        """POST /v1/pricing-strategy/products/add — добавить товары в стратегию."""
+        return await self._post("/v1/pricing-strategy/products/add",
+                                {"strategy_id": strategy_id, "product_id": product_ids})
+
+    async def pricing_strategy_products_delete(self, product_ids: list[int]) -> dict:
+        """POST /v1/pricing-strategy/products/delete — убрать товары из стратегий."""
+        return await self._post("/v1/pricing-strategy/products/delete", {"product_id": product_ids})
+
+    async def pricing_strategy_products_list(self, strategy_id: str) -> dict:
+        """POST /v1/pricing-strategy/products/list — товары стратегии."""
+        return await self._post("/v1/pricing-strategy/products/list", {"strategy_id": strategy_id})
+
+    async def pricing_competitors_list(self, page: int = 1, limit: int = 50) -> dict:
+        """POST /v1/pricing-strategy/competitors/list — список конкурентов (другие площадки)."""
+        return await self._post("/v1/pricing-strategy/competitors/list", {"page": page, "limit": limit})
+
+    async def pricing_competitor_price(self, product_id: int) -> dict:
+        """POST /v1/pricing-strategy/product/info — цена товара у конкурента."""
+        return await self._post("/v1/pricing-strategy/product/info", {"product_id": product_id})
 
     # ── Цены ──────────────────────────────────────────────
     async def product_import_prices(self, prices: list[dict]) -> dict:
@@ -124,7 +208,10 @@ class OzonSellerClient:
         self, date_from: str, date_to: str, page: int = 1, page_size: int = 50,
         operation_type: list[str] | None = None,
     ) -> dict:
-        """POST /v3/finance/transaction/list — финансовые транзакции."""
+        """POST /v3/finance/transaction/list — финансовые транзакции.
+
+        ⚠️ Ozon отключает 06.07.2026 — замена: finance_cash_flow + finance_accrual_by_day.
+        """
         body: dict[str, Any] = {
             "filter": {
                 "date": {"from": date_from, "to": date_to},
@@ -149,9 +236,21 @@ class OzonSellerClient:
              "posting_number": "", "transaction_type": "all"},
         )
 
-    async def finance_realization(self, date: str) -> dict:
-        """POST /v1/finance/realization — отчёт о реализации за месяц (формат YYYY-MM)."""
-        return await self._post("/v1/finance/realization", {"date": date})
+    async def finance_realization(self, month: int, year: int) -> dict:
+        """POST /v2/finance/realization — отчёт о реализации за месяц (v1 удалён)."""
+        return await self._post("/v2/finance/realization", {"month": month, "year": year})
+
+    async def finance_mutual_settlement(self, date: str) -> dict:
+        """POST /v1/finance/mutual-settlement — отчёт о взаиморасчётах (date: YYYY-MM)."""
+        return await self._post("/v1/finance/mutual-settlement", {"date": date})
+
+    async def finance_accrual_by_day(self, date: str) -> dict:
+        """POST /v1/finance/accrual/by-day — начисления по дням (date: YYYY-MM-DD)."""
+        return await self._post("/v1/finance/accrual/by-day", {"date": date})
+
+    async def finance_products_buyout(self, date_from: str, date_to: str) -> dict:
+        """POST /v1/finance/products/buyout — выкупленные товары за период."""
+        return await self._post("/v1/finance/products/buyout", {"date_from": date_from, "date_to": date_to})
 
     async def finance_cash_flow(
         self, date_from: str, date_to: str, page: int = 1, page_size: int = 50
@@ -192,9 +291,13 @@ class OzonSellerClient:
         """POST /v1/review/comment/create — ответить на отзыв."""
         return await self._post("/v1/review/comment/create", {"review_id": review_id, "text": text})
 
-    async def review_comment_update(self, review_id: str, comment_id: str, text: str) -> dict:
-        """POST /v1/review/comment/update — обновить ответ на отзыв."""
-        return await self._post("/v1/review/comment/update", {"review_id": review_id, "comment_id": comment_id, "text": text})
+    async def review_comment_list(self, review_id: str, limit: int = 20) -> dict:
+        """POST /v1/review/comment/list — комментарии к отзыву."""
+        return await self._post("/v1/review/comment/list", {"review_id": review_id, "limit": limit})
+
+    async def review_count(self) -> dict:
+        """POST /v1/review/count — количество отзывов (обработанные/необработанные)."""
+        return await self._post("/v1/review/count", {})
 
     async def review_comment_delete(self, review_id: str, comment_id: str) -> dict:
         """POST /v1/review/comment/delete — удалить ответ на отзыв."""
@@ -241,6 +344,62 @@ class OzonSellerClient:
         """Совместимость: старый stock_on_warehouses удалён — отдаём turnover/stocks."""
         return await self.analytics_turnover_stocks(limit=limit, offset=offset)
 
+    async def product_queries(self, date_from: str, skus: list[int],
+                              page_size: int = 50) -> dict:
+        """POST /v1/analytics/product-queries — поисковые запросы по моим товарам (Premium).
+
+        КРИТИЧНО: видимость в поиске = продажи.
+        """
+        if "T" not in date_from:
+            date_from += "T00:00:00Z"
+        return await self._post("/v1/analytics/product-queries", {
+            "date_from": date_from, "skus": [str(s) for s in skus], "page_size": page_size,
+        })
+
+    async def product_queries_details(self, date_from: str, skus: list[int],
+                                      limit_by_sku: int = 10, page_size: int = 50) -> dict:
+        """POST /v1/analytics/product-queries/details — детализация запросов по товарам (Premium)."""
+        if "T" not in date_from:
+            date_from += "T00:00:00Z"
+        return await self._post("/v1/analytics/product-queries/details", {
+            "date_from": date_from, "skus": [str(s) for s in skus],
+            "limit_by_sku": limit_by_sku, "page_size": page_size,
+        })
+
+    async def search_queries_top(self, limit: int = 50, offset: int = 0) -> dict:
+        """POST /v1/search-queries/top — популярные поисковые запросы на Ozon."""
+        return await self._post("/v1/search-queries/top", {"limit": limit, "offset": offset})
+
+    async def finance_balance(self, date_from: str = "", date_to: str = "") -> dict:
+        """POST /v1/finance/balance — баланс продавца за период (Beta).
+
+        Без дат — последние 30 дней. Возвращает opening/closing balance, начисления, выплаты.
+        """
+        from datetime import date as _d, timedelta as _td
+        if not date_to:
+            date_to = _d.today().isoformat()
+        if not date_from:
+            date_from = (_d.today() - _td(days=30)).isoformat()
+        return await self._post("/v1/finance/balance", {"date_from": date_from, "date_to": date_to})
+
+    async def product_attributes_update(self, items: list[dict]) -> dict:
+        """POST /v1/product/attributes/update — обновить характеристики товаров."""
+        return await self._post("/v1/product/attributes/update", {"items": items})
+
+    async def product_import_by_sku(self, items: list[dict]) -> dict:
+        """POST /v1/product/import-by-sku — создать товар-копию по SKU."""
+        return await self._post("/v1/product/import-by-sku", {"items": items})
+
+    async def product_stocks_by_warehouse(self, skus: list[int] | None = None,
+                                          limit: int = 100, cursor: str = "") -> dict:
+        """POST /v2/product/info/stocks-by-warehouse/fbs — остатки по складам FBS (v1 отключается 07.04.2026)."""
+        body: dict[str, Any] = {"limit": limit}
+        if skus:
+            body["sku"] = [str(s) for s in skus]
+        if cursor:
+            body["cursor"] = cursor
+        return await self._post("/v2/product/info/stocks-by-warehouse/fbs", body)
+
     # ── Товары ─────────────────────────────────────────────
     async def product_list(
         self, limit: int = 100, last_id: str = "",
@@ -262,7 +421,7 @@ class OzonSellerClient:
         self, offer_id: list[str] | None = None, product_id: list[int] | None = None,
         limit: int = 100, last_id: str = "",
     ) -> dict:
-        """POST /v4/products/info/attributes — атрибуты товаров (включая бренд)."""
+        """POST /v4/product/info/attributes — атрибуты товаров (включая бренд)."""
         body: dict[str, Any] = {"limit": limit, "last_id": last_id}
         filt: dict[str, Any] = {}
         if offer_id:
@@ -271,7 +430,7 @@ class OzonSellerClient:
             filt["product_id"] = product_id
         if filt:
             body["filter"] = filt
-        return await self._post("/v4/products/info/attributes", body)
+        return await self._post("/v4/product/info/attributes", body)
 
     async def product_info_stocks(
         self, offer_id: list[str] | None = None, product_id: list[int] | None = None,
@@ -329,9 +488,9 @@ class OzonSellerClient:
         """POST /v1/product/unarchive — вернуть товары из архива."""
         return await self._post("/v1/product/unarchive", {"product_id": product_id})
 
-    async def product_delete(self, product_id: list[int]) -> dict:
-        """POST /v2/products/delete — удалить товары без продаж."""
-        return await self._post("/v2/products/delete", {"product_id": product_id})
+    async def product_delete(self, offer_ids: list[str]) -> dict:
+        """POST /v2/products/delete — удалить товары без SKU из архива. Тело: products[{offer_id}]."""
+        return await self._post("/v2/products/delete", {"products": [{"offer_id": o} for o in offer_ids]})
 
     async def product_info_limit(self) -> dict:
         """POST /v4/product/info/limit — лимиты на создание товаров."""
@@ -341,9 +500,9 @@ class OzonSellerClient:
         """POST /v1/product/rating-by-sku — рейтинг контента товаров."""
         return await self._post("/v1/product/rating-by-sku", {"skus": skus})
 
-    async def product_info_discounted(self, product_id: list[int]) -> dict:
-        """POST /v1/product/info/discounted — уценённые товары."""
-        return await self._post("/v1/product/info/discounted", {"product_id": product_id})
+    async def product_info_discounted(self, discounted_skus: list[int]) -> dict:
+        """POST /v1/product/info/discounted — информация об уценке по SKU уценённых товаров."""
+        return await self._post("/v1/product/info/discounted", {"discounted_skus": [str(s) for s in discounted_skus]})
 
     # ── Заказы FBO ─────────────────────────────────────────
     async def posting_fbo_list(
@@ -374,8 +533,19 @@ class OzonSellerClient:
         return await self._post("/v3/posting/fbs/get", {"posting_number": posting_number, "with": {"analytics_data": True, "financial_data": True}})
 
     async def posting_fbs_ship(self, posting_number: str, packages: list[dict]) -> dict:
-        """POST /v3/posting/fbs/ship — отгрузить FBS."""
-        return await self._post("/v3/posting/fbs/ship", {"posting_number": posting_number, "packages": packages})
+        """POST /v4/posting/fbs/ship — собрать заказ FBS (v3 удалён)."""
+        return await self._post("/v4/posting/fbs/ship", {"posting_number": posting_number, "packages": packages})
+
+    async def posting_fbs_unfulfilled(self, limit: int = 100, cutoff_from: str = "", cutoff_to: str = "") -> dict:
+        """POST /v3/posting/fbs/unfulfilled/list — несобранные заказы FBS."""
+        body: dict[str, Any] = {"dir": "ASC", "limit": limit, "filter": {}}
+        if cutoff_from and cutoff_to:
+            body["filter"] = {"cutoff_from": cutoff_from, "cutoff_to": cutoff_to}
+        return await self._post("/v3/posting/fbs/unfulfilled/list", body)
+
+    async def posting_fbs_package_label(self, posting_numbers: list[str]) -> dict:
+        """POST /v2/posting/fbs/package-label — этикетки отправлений (синхронно, PDF base64)."""
+        return await self._post("/v2/posting/fbs/package-label", {"posting_number": posting_numbers})
 
     async def posting_fbs_act_create(self, containers_count: int = 1) -> dict:
         """POST /v2/posting/fbs/act/create — создать акт приёма-передачи."""
@@ -390,8 +560,8 @@ class OzonSellerClient:
         return await self._post("/v2/posting/fbs/act/get-pdf", {"id": id})
 
     async def posting_fbs_digital_act_create(self, id: int) -> dict:
-        """POST /v2/posting/fbs/digital/act/create — создать электронный акт."""
-        return await self._post("/v2/posting/fbs/digital/act/create", {"id": id})
+        """Совместимость: цифровые акты удалены Ozon 22.03.2026 — используем статус обычного акта."""
+        return await self.posting_fbs_act_check_status(id)
 
     async def posting_fbs_cancel(self, posting_number: str, cancel_reason_id: int, cancel_reason_message: str = "") -> dict:
         """POST /v2/posting/fbs/cancel — отменить FBS отправление."""
@@ -402,12 +572,12 @@ class OzonSellerClient:
         return await self._post("/v2/posting/fbs/cancel-reason/list", {})
 
     async def posting_fbs_product_country_list(self, posting_number: str) -> dict:
-        """POST /v1/posting/fbs/product/country/list — страны для отправления."""
-        return await self._post("/v1/posting/fbs/product/country/list", {"posting_number": posting_number})
+        """POST /v2/posting/fbs/product/country/list — справочник стран-изготовителей."""
+        return await self._post("/v2/posting/fbs/product/country/list", {"posting_number": posting_number})
 
     async def posting_fbs_product_country_set(self, posting_number: str, product_id: int, country_iso: str) -> dict:
-        """POST /v1/posting/fbs/product/country/set — указать страну товара."""
-        return await self._post("/v1/posting/fbs/product/country/set", {"posting_number": posting_number, "product_id": product_id, "country_iso_code": country_iso})
+        """POST /v2/posting/fbs/product/country/set — указать страну-изготовителя товара."""
+        return await self._post("/v2/posting/fbs/product/country/set", {"posting_number": posting_number, "product_id": product_id, "country_iso_code": country_iso})
 
     async def posting_fbs_restrictions(self, posting_number: list[str]) -> dict:
         """POST /v1/posting/fbs/restrictions — ограничения отправлений."""
@@ -421,26 +591,63 @@ class OzonSellerClient:
         """POST /v2/posting/fbo/get — детали FBO отправления."""
         return await self._post("/v2/posting/fbo/get", {"posting_number": posting_number, "with": {"analytics_data": True, "financial_data": True}})
 
+    # ── Поставки FBO (supply-order, v2 удалены → v3) ───────
+    async def supply_orders_list(self, states: list[int] | None = None, limit: int = 50) -> dict:
+        """POST /v3/supply-order/list — заявки на поставку FBO (возвращает order_ids).
+
+        states — ЦЕЛОЧИСЛЕННЫЕ коды статусов 1-8 (по умолчанию все).
+        Детали заявок — через supply_orders_get.
+        """
+        return await self._post("/v3/supply-order/list", {
+            "limit": limit, "sort_by": 1,
+            "filter": {"states": states or [1, 2, 3, 4, 5, 6, 7, 8]},
+        })
+
+    async def supply_orders_get(self, order_ids: list[int]) -> dict:
+        """POST /v3/supply-order/get — детали заявок на поставку (1-50)."""
+        return await self._post("/v3/supply-order/get", {"order_ids": order_ids})
+
+    async def supply_order_status_counter(self) -> dict:
+        """POST /v1/supply-order/status/counter — счётчики заявок по статусам."""
+        return await self._post("/v1/supply-order/status/counter", {})
+
+    async def supply_order_timeslots(self, supply_order_id: int) -> dict:
+        """POST /v1/supply-order/timeslot/get — доступные таймслоты поставки."""
+        return await self._post("/v1/supply-order/timeslot/get", {"supply_order_id": supply_order_id})
+
     # ── Возвраты ───────────────────────────────────────────
-    async def returns_fbo_list(self, filter_params: dict, limit: int = 50, offset: int = 0) -> dict:
-        """POST /v3/returns/company/fbo — возвраты FBO."""
-        return await self._post("/v3/returns/company/fbo", {"filter": filter_params, "limit": limit, "offset": offset})
+    # /v3/returns/company/fbo|fbs OBSOLETE → единый /v1/returns/list.
+    # Заявки rFBS — /v2/returns/rfbs/* (v1 удалены).
 
-    async def returns_fbs_list(self, filter_params: dict, limit: int = 50, offset: int = 0) -> dict:
-        """POST /v3/returns/company/fbs — возвраты FBS."""
-        return await self._post("/v3/returns/company/fbs", {"filter": filter_params, "limit": limit, "offset": offset})
+    async def returns_list(self, filter_params: dict | None = None, limit: int = 100, last_id: int = 0) -> dict:
+        """POST /v1/returns/list — ЕДИНЫЙ список возвратов (FBO + FBS)."""
+        body: dict[str, Any] = {"filter": filter_params or {}, "limit": limit}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v1/returns/list", body)
 
-    async def returns_fbs_approve(self, return_id: int) -> dict:
-        """POST /v1/returns/fbs/approve — одобрить возврат FBS."""
-        return await self._post("/v1/returns/fbs/approve", {"return_id": return_id})
+    async def returns_rfbs_list(self, limit: int = 100, last_id: int = 0) -> dict:
+        """POST /v2/returns/rfbs/list — заявки покупателей на возврат rFBS."""
+        body: dict[str, Any] = {"limit": limit}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v2/returns/rfbs/list", body)
 
-    async def returns_fbs_reject(self, return_id: int, reason: str) -> dict:
-        """POST /v1/returns/fbs/reject — отклонить возврат FBS."""
-        return await self._post("/v1/returns/fbs/reject", {"return_id": return_id, "rejection_reason": reason})
+    async def returns_rfbs_get(self, return_id: int) -> dict:
+        """POST /v2/returns/rfbs/get — детали заявки rFBS."""
+        return await self._post("/v2/returns/rfbs/get", {"return_id": return_id})
 
-    async def returns_fbs_get(self, return_id: int) -> dict:
-        """POST /v1/returns/fbs/get — детали возврата FBS."""
-        return await self._post("/v1/returns/fbs/get", {"return_id": return_id})
+    async def returns_rfbs_action(self, action: str, return_id: int, comment: str = "") -> dict:
+        """POST /v2/returns/rfbs/{action} — действие по заявке rFBS.
+
+        action: verify (одобрить), reject (отклонить, нужен comment),
+        receive-return (подтвердить получение), return-money (вернуть деньги),
+        compensate (компенсация без возврата товара).
+        """
+        body: dict[str, Any] = {"return_id": return_id}
+        if comment:
+            body["comment"] = comment
+        return await self._post(f"/v2/returns/rfbs/{action}", body)
 
     async def report_returns_create(self, filter_params: dict) -> dict:
         """POST /v2/report/returns/create — создать отчёт по возвратам."""
@@ -454,9 +661,14 @@ class OzonSellerClient:
             body["last_id"] = last_id
         return await self._post("/v1/question/list", body)
 
-    async def question_reply(self, question_id: str, text: str) -> dict:
-        """POST /v1/question/reply — ответить на вопрос."""
-        return await self._post("/v1/question/reply", {"question_id": question_id, "text": text})
+    async def question_reply(self, question_id: str, sku: int, text: str) -> dict:
+        """POST /v1/question/answer/create — ответить на вопрос (нужен sku товара)."""
+        return await self._post("/v1/question/answer/create",
+                                {"question_id": question_id, "sku": sku, "text": text})
+
+    async def question_count(self) -> dict:
+        """POST /v1/question/count — количество вопросов по статусам."""
+        return await self._post("/v1/question/count", {})
 
     # ── Чат ────────────────────────────────────────────────
     # v1/v2 list, v1/v2 history и v1/v2 updates УДАЛЕНЫ (404). Актуально:
@@ -503,24 +715,31 @@ class OzonSellerClient:
             body["from_message_id"] = from_message_id
         return await self._post("/v2/chat/read", body)
 
-    # ── Отмены ─────────────────────────────────────────────
-    async def conditional_cancellation_list(self, posting_number: str = "", status: str = "ON_APPROVAL", page: int = 1, page_size: int = 50) -> dict:
-        """POST /v1/conditional-cancellation/list — заявки на отмену покупателем."""
-        body: dict[str, Any] = {"filter": {"status": status}, "paging": {"page": page, "page_size": page_size}}
+    # ── Отмены (v1 obsolete → v2) ──────────────────────────
+    async def conditional_cancellation_list(self, posting_number: str = "", state: str = "ON_APPROVAL",
+                                            limit: int = 100, last_id: int = 0) -> dict:
+        """POST /v2/conditional-cancellation/list — заявки покупателей на отмену.
+
+        state: ALL | ON_APPROVAL | APPROVED | REJECTED.
+        """
+        filters: dict[str, Any] = {"state": state}
         if posting_number:
-            body["filter"]["posting_number"] = posting_number
-        return await self._post("/v1/conditional-cancellation/list", body)
+            filters["posting_number"] = posting_number
+        body: dict[str, Any] = {"filters": filters, "limit": limit}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v2/conditional-cancellation/list", body)
 
     async def conditional_cancellation_approve(self, cancellation_id: int, comment: str = "") -> dict:
-        """POST /v1/conditional-cancellation/approve — одобрить отмену."""
+        """POST /v2/conditional-cancellation/approve — одобрить отмену."""
         body: dict[str, Any] = {"cancellation_id": cancellation_id}
         if comment:
             body["comment"] = comment
-        return await self._post("/v1/conditional-cancellation/approve", body)
+        return await self._post("/v2/conditional-cancellation/approve", body)
 
     async def conditional_cancellation_reject(self, cancellation_id: int, comment: str = "") -> dict:
-        """POST /v1/conditional-cancellation/reject — отклонить отмену."""
-        return await self._post("/v1/conditional-cancellation/reject", {"cancellation_id": cancellation_id, "comment": comment})
+        """POST /v2/conditional-cancellation/reject — отклонить отмену (comment обязателен)."""
+        return await self._post("/v2/conditional-cancellation/reject", {"cancellation_id": cancellation_id, "comment": comment})
 
     # ── Склады ─────────────────────────────────────────────
     async def warehouse_list(self) -> dict:
@@ -547,13 +766,19 @@ class OzonSellerClient:
         """POST /v1/report/products/create — создать отчёт по товарам."""
         return await self._post("/v1/report/products/create", {"visibility": visibility, "language": language})
 
-    async def report_stocks_create(self, language: str = "DEFAULT") -> dict:
-        """POST /v1/report/stocks/create — создать отчёт по остаткам."""
-        return await self._post("/v1/report/stocks/create", {"language": language})
+    async def report_stocks_create(self, warehouse_id: str = "", language: str = "DEFAULT") -> dict:
+        """Отчёт по остаткам: /v1/report/stocks/create УДАЛЁН Ozon.
+
+        warehouse_id задан → /v1/report/warehouse/stock (остатки FBS-склада),
+        иначе — текущие остатки через /v1/analytics/turnover/stocks.
+        """
+        if warehouse_id:
+            return await self._post("/v1/report/warehouse/stock", {"warehouseId": warehouse_id, "language": language})
+        return await self.analytics_turnover_stocks(limit=1000)
 
     async def report_finance_create(self, date_from: str, date_to: str) -> dict:
-        """POST /v1/report/finance/create — создать финансовый отчёт."""
-        return await self._post("/v1/report/finance/create", {"filter": {"date_from": date_from, "date_to": date_to}})
+        """Финансовый отчёт: /v1/report/finance/create УДАЛЁН Ozon — отдаём cash-flow-statement."""
+        return await self.finance_cash_flow(date_from, date_to)
 
     async def report_discounted_create(self) -> dict:
         """POST /v1/report/discounted/create — отчёт по уценённым товарам."""
@@ -581,24 +806,38 @@ class OzonSellerClient:
         """POST /v1/description-category/attribute/values/search — поиск значений."""
         return await self._post("/v1/description-category/attribute/values/search", {"description_category_id": description_category_id, "attribute_id": attribute_id, "value": value, "limit": limit, "language": language})
 
-    # ── Уведомления ────────────────────────────────────────
-    async def notification_list(self, limit: int = 50, offset: int = 0) -> dict:
-        """POST /v1/notification/list — список уведомлений."""
-        return await self._post("/v1/notification/list", {"limit": limit, "offset": offset})
+    # ── Push-уведомления (вебхуки, бета 04.2026) ───────────
+    async def notification_list(self) -> dict:
+        """POST /v1/notification/list — список подписок на push-уведомления (вебхуки)."""
+        return await self._post("/v1/notification/list", {})
 
-    async def notification_mark_read(self, notification_ids: list[str]) -> dict:
-        """POST /v1/notification/mark-as-read — пометить уведомления как прочитанные."""
-        return await self._post("/v1/notification/mark-as-read", {"notification_ids": notification_ids})
+    async def notification_push_types(self) -> dict:
+        """POST /v1/notification/push-type/list — справочник типов push-событий."""
+        return await self._post("/v1/notification/push-type/list", {})
 
-    # ── Хочу скидку ────────────────────────────────────────
-    async def discount_task_list(self, limit: int = 50, offset: int = 0) -> dict:
-        return {"error": "Endpoint /v1/discount/task/list не существует в публичном Ozon API."}
+    async def notification_set(self, url: str) -> dict:
+        """POST /v1/notification/set — создать подписку на вебхук."""
+        return await self._post("/v1/notification/set", {"url": url})
 
-    async def discount_task_approve(self, task_id: int, price: float) -> dict:
-        return {"error": "Endpoint не существует в публичном Ozon API."}
+    # ── «Хочу скидку» (заявки покупателей на скидку) ───────
+    async def discount_task_list(self, status: str = "NEW", limit: int = 50, last_id: str = "") -> dict:
+        """POST /v2/actions/discounts-task/list — заявки покупателей на скидку (v1 deprecated)."""
+        body: dict[str, Any] = {"status": status, "limit": limit}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v2/actions/discounts-task/list", body)
 
-    async def discount_task_decline(self, task_id: int) -> dict:
-        return {"error": "Endpoint не существует в публичном Ozon API."}
+    async def discount_task_approve(self, tasks: list[dict]) -> dict:
+        """POST /v1/actions/discounts-task/approve — одобрить заявки.
+
+        tasks: [{"id": ..., "approved_price": 990, "seller_comment": "",
+                 "approved_quantity_min": 1, "approved_quantity_max": 1}]
+        """
+        return await self._post("/v1/actions/discounts-task/approve", {"tasks": tasks})
+
+    async def discount_task_decline(self, tasks: list[dict]) -> dict:
+        """POST /v1/actions/discounts-task/decline — отклонить заявки. tasks: [{"id", "seller_comment"}]"""
+        return await self._post("/v1/actions/discounts-task/decline", {"tasks": tasks})
 
     # ── Компания ───────────────────────────────────────────
     async def company_info(self) -> dict:
@@ -624,19 +863,26 @@ class OzonSellerClient:
 
 
 class OzonPerformanceClient:
-    """Клиент для Ozon Performance API (реклама)."""
+    """Клиент для Ozon Performance API (реклама).
+
+    Бюджеты и ставки CPC — в МИКРОРУБЛЯХ (1000000 = 1 ₽), строкой.
+    Токен живёт 30 минут — обновляется автоматически.
+    """
 
     def __init__(self, client_id: str, client_secret: str):
         self.client_id = client_id
         self.client_secret = client_secret
         self._token: str | None = None
+        self._token_at: float = 0.0
         self._http = httpx.AsyncClient(
             base_url=PERF_BASE,
-            timeout=30.0,
+            timeout=60.0,
         )
 
     async def _ensure_token(self):
-        if self._token:
+        import time as _t
+        # Токен живёт 1800 с — обновляем за 60 с до истечения
+        if self._token and (_t.monotonic() - self._token_at) < 1740:
             return
         r = await self._http.post(
             "/api/client/token",
@@ -648,6 +894,7 @@ class OzonPerformanceClient:
         )
         r.raise_for_status()
         self._token = r.json()["access_token"]
+        self._token_at = _t.monotonic()
         self._http.headers["Authorization"] = f"Bearer {self._token}"
 
     async def _get(self, path: str, params: dict | None = None) -> dict:
@@ -669,16 +916,67 @@ class OzonPerformanceClient:
         return r.json()
 
     # ── Кампании ───────────────────────────────────────────
-    async def campaigns_list(self) -> dict:
-        """GET /api/client/campaign — список рекламных кампаний."""
-        return await self._get("/api/client/campaign")
+    async def campaigns_list(self, campaign_ids: list[int] | None = None,
+                             adv_object_type: str | None = None,
+                             state: str | None = None,
+                             page: int = 1, page_size: int = 100) -> dict:
+        """GET /api/client/campaign — список кампаний.
 
-    async def campaign_create(self, title: str, campaign_type: str, products: list[dict], daily_budget: float = 0) -> dict:
-        """POST /api/client/campaign — создать рекламную кампанию."""
-        body = {"title": title, "type": campaign_type, "products": products}
-        if daily_budget:
-            body["dailyBudget"] = daily_budget
-        return await self._post("/api/client/campaign", body)
+        adv_object_type: SKU (трафареты CPC) | SEARCH_PROMO (оплата за заказ) | BANNER | VIDEO_BANNER.
+        state: CAMPAIGN_STATE_RUNNING | _STOPPED (нет бюджета) | _INACTIVE | _PLANNED | _ARCHIVED | _FINISHED.
+        Бюджет кампании — в полях budget/dailyBudget/weeklyBudget ответа (микрорубли).
+        """
+        params: dict[str, Any] = {"page": page, "pageSize": page_size}
+        if campaign_ids:
+            params["campaignIds"] = [str(c) for c in campaign_ids]
+        if adv_object_type:
+            params["advObjectType"] = adv_object_type
+        if state:
+            params["state"] = state
+        return await self._get("/api/client/campaign", params)
+
+    async def campaign_create(self, title: str, placement: str = "PLACEMENT_SEARCH_AND_CATEGORY",
+                              autopilot_strategy: str = "MAX_CLICKS",
+                              daily_budget_rub: float = 0, weekly_budget_rub: float = 0,
+                              from_date: str = "", to_date: str = "") -> dict:
+        """POST /api/client/campaign/cpc/v2/product — создать CPC-кампанию (трафареты).
+
+        placement: PLACEMENT_SEARCH_AND_CATEGORY (поиск+рекомендации) | PLACEMENT_TOP_PROMOTION (вывод в топ).
+        autopilot_strategy: MAX_CLICKS | TOP_MAX_CLICKS | TARGET_BIDS | TOP_PROMOTION | NO_AUTO_STRATEGY.
+        Бюджеты в РУБЛЯХ (конвертируются в микрорубли). Мин. бюджет с 09.2025: 2000 ₽ × SKU.
+        """
+        body: dict[str, Any] = {
+            "title": title,
+            "placement": placement,
+            "productAutopilotStrategy": autopilot_strategy,
+        }
+        if daily_budget_rub:
+            body["dailyBudget"] = str(int(daily_budget_rub * 1_000_000))
+        if weekly_budget_rub:
+            body["weeklyBudget"] = str(int(weekly_budget_rub * 1_000_000))
+        if from_date:
+            body["fromDate"] = from_date
+        if to_date:
+            body["toDate"] = to_date
+        return await self._post("/api/client/campaign/cpc/v2/product", body)
+
+    async def campaign_update(self, campaign_id: int, daily_budget_rub: float | None = None,
+                              weekly_budget_rub: float | None = None,
+                              from_date: str = "", to_date: str = "") -> dict:
+        """PATCH /api/client/campaign/{id} — изменить бюджет/период кампании."""
+        body: dict[str, Any] = {}
+        if daily_budget_rub is not None:
+            body["dailyBudget"] = str(int(daily_budget_rub * 1_000_000))
+        if weekly_budget_rub is not None:
+            body["weeklyBudget"] = str(int(weekly_budget_rub * 1_000_000))
+        if from_date:
+            body["fromDate"] = from_date
+        if to_date:
+            body["toDate"] = to_date
+        await self._ensure_token()
+        r = await self._http.patch(f"/api/client/campaign/{campaign_id}", json=body)
+        r.raise_for_status()
+        return r.json()
 
     async def campaign_activate(self, campaign_id: int) -> dict:
         """POST /api/client/campaign/{id}/activate — запустить кампанию."""
@@ -688,56 +986,126 @@ class OzonPerformanceClient:
         """POST /api/client/campaign/{id}/deactivate — остановить кампанию."""
         return await self._post(f"/api/client/campaign/{campaign_id}/deactivate")
 
-    async def campaign_update_bids(self, campaign_id: int, bids: list[dict]) -> dict:
-        """PUT /api/client/campaign/{id}/bids — обновить ставки."""
-        return await self._put(f"/api/client/campaign/{campaign_id}/bids", {"bids": bids})
+    async def campaign_products_list(self, campaign_id: int, page: int = 1, page_size: int = 100) -> dict:
+        """GET /api/client/campaign/{id}/v2/products — товары и ставки в кампании."""
+        return await self._get(f"/api/client/campaign/{campaign_id}/v2/products",
+                               {"page": page, "pageSize": page_size})
 
-    async def campaign_budget(self, campaign_id: int) -> dict:
-        """GET /api/client/campaign/{id}/budget — бюджет кампании."""
-        return await self._get(f"/api/client/campaign/{campaign_id}/budget")
+    async def campaign_products_add(self, campaign_id: int, bids: list[dict]) -> dict:
+        """POST /api/client/campaign/{id}/products — добавить товары (≤500 на кампанию).
 
-    async def campaign_update_budget(self, campaign_id: int, daily_budget: float, total_budget: float = 0) -> dict:
-        """PUT /api/client/campaign/{id}/budget — обновить бюджет."""
-        body: dict = {"dailyBudget": daily_budget}
-        if total_budget:
-            body["totalBudget"] = total_budget
-        return await self._put(f"/api/client/campaign/{campaign_id}/budget", body)
+        bids: [{"sku": 123, "bid": "10000000"}] — ставка в микрорублях; без bid — конкурентная.
+        """
+        return await self._post(f"/api/client/campaign/{campaign_id}/products", {"bids": bids})
+
+    async def campaign_products_update(self, campaign_id: int, bids: list[dict]) -> dict:
+        """PUT /api/client/campaign/{id}/products — обновить ставки товаров."""
+        return await self._put(f"/api/client/campaign/{campaign_id}/products", {"bids": bids})
+
+    async def campaign_products_delete(self, campaign_id: int, skus: list[int]) -> dict:
+        """POST /api/client/campaign/{id}/products/delete — убрать товары из кампании."""
+        return await self._post(f"/api/client/campaign/{campaign_id}/products/delete",
+                                {"sku": [str(s) for s in skus]})
+
+    async def bids_competitive(self, campaign_id: int, skus: list[int]) -> dict:
+        """GET /api/client/campaign/{id}/products/bids/competitive — конкурентные ставки (≤200 SKU)."""
+        return await self._get(f"/api/client/campaign/{campaign_id}/products/bids/competitive",
+                               {"skus": [str(s) for s in skus]})
+
+    async def min_sku_bids(self, skus: list[int], payment_type: str = "CPC") -> dict:
+        """POST /api/client/min/sku — минимальные ставки по SKU (CPC | CPO | CPC_TOP), в рублях."""
+        return await self._post("/api/client/min/sku", {
+            "marketplaceId": "MARKETPLACE_ID_RU", "paymentType": payment_type,
+            "sku": [str(s) for s in skus],
+        })
+
+    async def limits_list(self) -> dict:
+        """GET /api/client/limits/list — мин/макс ставки по типам размещения."""
+        return await self._get("/api/client/limits/list")
 
     async def campaign_objects(self, campaign_id: int) -> dict:
-        """GET /api/client/campaign/{id}/objects — товары и ставки в кампании."""
+        """GET /api/client/campaign/{id}/objects — продвигаемые объекты кампании."""
         return await self._get(f"/api/client/campaign/{campaign_id}/objects")
 
-    async def campaign_objects_update(self, campaign_id: int, objects: list[dict]) -> dict:
-        """PUT /api/client/campaign/{id}/objects — обновить товары в кампании."""
-        return await self._put(f"/api/client/campaign/{campaign_id}/objects", {"objects": objects})
+    # ── Оплата за заказ (search_promo, бывший «вывод в топ» CPO) ──
+    # С 26.02.2025 ставки CPO фиксированные — установка ставок deprecated.
+
+    async def search_promo_products(self, page: int = 1, page_size: int = 100) -> dict:
+        """POST /api/client/campaign/search_promo/v2/products — товары в «Оплате за заказ»."""
+        return await self._post("/api/client/campaign/search_promo/v2/products",
+                                {"page": page, "pageSize": page_size})
+
+    async def search_promo_enable(self, skus: list[int]) -> dict:
+        """POST /api/client/search_promo/product/enable — включить продвижение (≤1000 SKU)."""
+        return await self._post("/api/client/search_promo/product/enable", {"skus": [str(s) for s in skus]})
+
+    async def search_promo_disable(self, skus: list[int]) -> dict:
+        """POST /api/client/search_promo/product/disable — отключить продвижение (≤1000 SKU)."""
+        return await self._post("/api/client/search_promo/product/disable", {"skus": [str(s) for s in skus]})
+
+    async def search_promo_cpo_bids(self, skus: list[int]) -> dict:
+        """POST /api/client/search_promo/get_cpo_min_bids — фиксированные ставки CPO (≤200 SKU)."""
+        return await self._post("/api/client/search_promo/get_cpo_min_bids", {"skus": [str(s) for s in skus]})
 
     # ── Статистика ─────────────────────────────────────────
+
     async def statistics(
         self, campaigns: list[int], date_from: str, date_to: str,
         group_by: str = "DATE",
-    ) -> dict:
-        """POST /api/client/statistics — статистика по кампаниям."""
-        return await self._post(
-            "/api/client/statistics",
-            {
-                "campaigns": campaigns,
-                "dateFrom": date_from,
-                "dateTo": date_to,
-                "groupBy": group_by,
-            },
-        )
+    ) -> Any:
+        """Асинхронный отчёт: POST /api/client/statistics/json → poll → report.
 
-    async def statistics_daily(self, campaigns: list[int], date_from: str, date_to: str) -> dict:
-        """POST /api/client/statistics/daily — ежедневная статистика."""
-        return await self._post("/api/client/statistics/daily", {"campaigns": campaigns, "dateFrom": date_from, "dateTo": date_to})
+        Лимиты: ≤10 кампаний, период ≤62 дня, 1 одновременная выгрузка на аккаунт.
+        """
+        import asyncio as _aio
+        submit = await self._post("/api/client/statistics/json", {
+            "campaigns": [str(c) for c in campaigns],
+            "dateFrom": date_from, "dateTo": date_to,
+            "groupBy": group_by,
+        })
+        uuid = submit.get("UUID")
+        if not uuid:
+            return submit
+        for _ in range(30):  # до ~2.5 минут
+            await _aio.sleep(5)
+            status = await self._get(f"/api/client/statistics/{uuid}")
+            if status.get("state") == "OK":
+                await self._ensure_token()
+                r = await self._http.get("/api/client/statistics/report", params={"UUID": uuid})
+                r.raise_for_status()
+                try:
+                    return r.json()
+                except Exception:
+                    return {"format": "csv", "content": r.text[:50000]}
+            if status.get("state") == "ERROR":
+                return {"uuid": uuid, "state": "ERROR", "detail": status}
+        return {"uuid": uuid, "state": "timeout",
+                "hint": f"Отчёт ещё готовится: GET /api/client/statistics/report?UUID={uuid}"}
 
-    async def statistics_expenses(self, campaigns: list[int], date_from: str, date_to: str) -> dict:
-        """POST /api/client/statistics/expenses — расходы по кампаниям."""
-        return await self._post("/api/client/statistics/expenses", {"campaigns": campaigns, "dateFrom": date_from, "dateTo": date_to})
+    async def statistics_daily(self, campaigns: list[int] | None, date_from: str, date_to: str) -> dict:
+        """GET /api/client/statistics/daily/json — дневная статистика (синхронно)."""
+        params: dict[str, Any] = {"dateFrom": date_from, "dateTo": date_to}
+        if campaigns:
+            params["campaignIds"] = [str(c) for c in campaigns]
+        return await self._get("/api/client/statistics/daily/json", params)
+
+    async def statistics_expenses(self, campaigns: list[int] | None, date_from: str, date_to: str) -> dict:
+        """GET /api/client/statistics/expense/json — расходы по кампаниям (синхронно)."""
+        params: dict[str, Any] = {"dateFrom": date_from, "dateTo": date_to}
+        if campaigns:
+            params["campaignIds"] = [str(c) for c in campaigns]
+        return await self._get("/api/client/statistics/expense/json", params)
+
+    async def statistics_products(self, campaigns: list[int], date_from: str, date_to: str) -> dict:
+        """GET /api/client/statistics/campaign/product/json — статистика CPC-кампаний по товарам: расход, CTR, CPC, заказы, ДРР."""
+        return await self._get("/api/client/statistics/campaign/product/json", {
+            "campaignIds": [str(c) for c in campaigns],
+            "dateFrom": date_from, "dateTo": date_to,
+        })
 
     # ── Баланс ─────────────────────────────────────────────
     async def balance(self) -> dict:
-        return {"error": "Endpoint /api/client/balance не существует в Performance API."}
+        return {"error": "Официального метода баланса в Performance API нет. Расход с абонентского счёта виден в ozon_ad_statistics_expenses."}
 
     async def close(self):
         await self._http.aclose()

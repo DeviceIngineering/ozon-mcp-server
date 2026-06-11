@@ -1,6 +1,6 @@
 [project]
 name = "ozon-mcp-server"
-version = "1.0.0"
+version = "2.0.0"
 description = "MCP-сервер для Ozon Seller API + Performance API"
 requires-python = ">=3.10"
 dependencies = [
