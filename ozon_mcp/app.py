@@ -5,11 +5,13 @@ import asyncio
 import secrets
 import uvicorn
 from pathlib import Path
+from uuid import UUID
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
+from starlette.types import Receive, Scope, Send
 
 from mcp.server.sse import SseServerTransport
 
@@ -28,7 +30,10 @@ MCP_AUTH_TOKEN = os.environ.get("MCP_AUTH_TOKEN", "").strip()
 # Интервал фоновой health-проверки, минуты (0 = выключить)
 HEALTH_CHECK_INTERVAL_MIN = int(os.environ.get("HEALTH_CHECK_INTERVAL_MIN", "30"))
 
-sse_transport = SseServerTransport("/messages")
+# Транспорт монтируется как отдельное ASGI-приложение (см. ниже), поэтому путь
+# для POST-сообщений объявляется со слешем на конце — так его отдаёт клиенту
+# endpoint-событие SSE и так же он смонтирован в роутере.
+sse_transport = SseServerTransport("/messages/")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 _health_task: asyncio.Task | None = None
@@ -94,7 +99,7 @@ fastapi_app = FastAPI(lifespan=lifespan)
 # ─── Авторизация MCP-эндпоинтов ─────────────────────────────
 
 def _check_mcp_auth(request: Request) -> bool:
-    """Проверка Bearer-токена для /sse. Без MCP_AUTH_TOKEN — пропуск."""
+    """Проверка Bearer-токена для /sse и /messages. Без MCP_AUTH_TOKEN — пропуск."""
     if not MCP_AUTH_TOKEN:
         return True
     auth = request.headers.get("authorization", "")
@@ -102,6 +107,24 @@ def _check_mcp_auth(request: Request) -> bool:
     if not token:
         token = request.query_params.get("token", "")
     return secrets.compare_digest(token, MCP_AUTH_TOKEN)
+
+
+def _is_live_session(request: Request) -> bool:
+    """POST относится к уже авторизованной SSE-сессии?
+
+    session_id выдаётся только по успешно авторизованному GET /sse, то есть сам
+    работает как одноразовый секрет. Нужно для клиентов, которые авторизуются
+    через ?token=... : в endpoint-событии токена нет, и они не могут повторить
+    его в POST-запросе.
+    """
+    sid = request.query_params.get("session_id", "")
+    if not sid:
+        return False
+    writers = getattr(sse_transport, "_read_stream_writers", {})
+    try:
+        return UUID(hex=sid) in writers
+    except ValueError:
+        return False
 
 
 # ─── MCP SSE endpoints ──────────────────────────────────────
@@ -115,13 +138,29 @@ async def sse_endpoint(request: Request):
         request.scope, request.receive, request._send
     ) as (read_stream, write_stream):
         await mcp_app.run(read_stream, write_stream, mcp_app.create_initialization_options())
+    # Пустой ответ обязателен: без него Starlette попытается вызвать None как
+    # ASGI-приложение после закрытия SSE-потока.
+    return Response()
 
 
-@fastapi_app.post("/messages")
-async def messages_endpoint(request: Request):
-    await sse_transport.handle_post_message(
-        request.scope, request.receive, request._send
-    )
+async def _messages_asgi(scope: Scope, receive: Receive, send: Send) -> None:
+    """POST клиентских сообщений — отдельное ASGI-приложение.
+
+    ВАЖНО: handle_post_message сам отправляет ASGI-ответ. Если завернуть его в
+    обычный маршрут FastAPI, фреймворк отправит ответ второй раз и соединение
+    рвётся с `RuntimeError: Unexpected ASGI message 'http.response.start' sent,
+    after response already completed` (у клиента — httpx.ReadError на initialize).
+    Поэтому транспорт монтируется через Mount, а авторизация проверяется здесь
+    вручную — middleware FastAPI-маршрута тут нет.
+    """
+    request = Request(scope, receive)
+    if not (_check_mcp_auth(request) or _is_live_session(request)):
+        await Response("Unauthorized", status_code=401)(scope, receive, send)
+        return
+    await sse_transport.handle_post_message(scope, receive, send)
+
+
+fastapi_app.mount("/messages", _messages_asgi)
 
 
 # ─── Веб-интерфейс ──────────────────────────────────────────

@@ -18,7 +18,10 @@ def client(tmp_path):
 def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    # /api/health отдаёт ещё и сводку диагностики — проверяем ключевые поля
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["auth_enabled"] is False
 
 
 def test_dashboard(client):
