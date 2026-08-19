@@ -16,8 +16,9 @@ What sets it apart from other Ozon MCP servers: it covers advertising as well as
 the Seller API, and its built-in diagnostics tell you which Ozon endpoints broke
 before your assistant runs into them.
 
-This is the author's own working tool — used daily and updated when he needs it
-updated. See [Updates and support](#updates-and-support) for what that means for you.
+This is the author's own working tool: more than five months of daily use, around
+twenty seller accounts, 151 tools. It gets updated when he needs it updated — see
+[Updates and support](#updates-and-support) for what that means for you.
 
 > The per-client installation guides in `docs/` are currently **Russian only**.
 > The configuration in them is ready-to-paste JSON, which reads the same in any
@@ -134,11 +135,30 @@ Client summary and the bridge reference: [docs/README.md](docs/README.md).
 
 ## Multi-store and security
 
-You can add as many stores as you like. Every tool takes a required `shop_id`;
+Stores are added in the web UI, and every tool takes a required `shop_id`;
 `ozon_list_shops` tells you which ones exist. In chat it looks like this:
 "show me the stock in store `alpha`".
 
-![Stores page](docs/img/shops.png)
+The real gain is not the switching itself but that **a strategy is written once and
+rolled out to every account**: a rule about prices, review replies or ad bids
+applies to all stores at once — no logging in and out of seller accounts, no
+copying keys between client configs.
+
+The price you pay is a shared IP. Every account talks to Ozon from one address:
+the server the MCP runs on. Ozon's rate limits are counted per address among other
+things, so the more accounts you have and the harder your strategies work them, the
+closer the combined traffic gets to the threshold where throttling or a block kicks in.
+
+- there is **no** limit on the number of stores in the code;
+- the real ceiling comes from Ozon's per-IP limits, not from this server;
+- around twenty accounts is the author's own estimate of where the traffic still
+  stays in the safe zone;
+- beyond that, spread the stores across several servers with different addresses.
+
+You can see the limit approaching, and the place to see it is the web UI: failed
+pings and diagnostics warnings start piling up, and the error share in the call
+statistics jumps. The dashboard also tells the two cases apart — mass throttling
+looks like many tools degrading at once, a broken endpoint like a single one.
 
 How keys are stored:
 
@@ -160,6 +180,85 @@ What to know about access:
   token: anyone who can reach the port sees the dashboard and can add stores.
 - Do not expose port 8000 to the internet directly. For remote access use
   Tailscale or a VPN.
+
+## The web UI: every call is visible
+
+With a typical MCP server, calls vanish into the void: the assistant did
+something, but what exactly, how long it took and what error it hit is known only
+to the assistant. Here every call gets a line in the log, and every broken tool
+gets a marker on the dashboard. For a tool that moves real money in a store, that
+is not decoration — it is the condition for trusting it.
+
+The call statistics and check history are not synthetic: they come from more than
+five months of daily use across roughly twenty seller accounts. The list of caught
+Ozon API changes in the limitations section comes from the same place — it was
+read off the degradation log, not copied from the documentation.
+
+### Dashboard `/`
+
+The screenshot is at the top of this page.
+
+- Four counters at the top: total calls, calls today, errors, and average call
+  duration in milliseconds.
+- Top 10 tools: call count, average duration, and how many of those calls failed.
+- A feed of the last 50 calls: timestamp, `shop_id`, tool name, duration, success
+  or failure, and the error text.
+- A per-store filter (`/?shop=alpha`) — the same figures for a single account.
+- Two banners surface at the top: degraded tools, and "the last Ozon API check
+  found problems".
+
+### Stores `/shops`
+
+![Stores page](docs/img/shops.png)
+
+Accounts are added and removed right in the browser, with no file editing and no
+container restart. The "Проверить" (Test) button makes a live request to both APIs
+(`POST /api/shops/{shop_id}/test`), so keys are verified when you add them rather
+than during the first real call in the middle of a task. Tokens are encrypted with
+Fernet, the encryption key lives in `DATA_DIR/.encryption_key`, and the UI shows
+keys masked.
+
+### Diagnostics `/diagnostics`
+
+![Diagnostics page](docs/img/diagnostics.png)
+
+*(the screenshot shows a demo store with deliberately invalid keys, which is why
+every probe is red)*
+
+- Per store: whether keys are set, Ozon host availability, 12 Seller API category
+  probes, and a Performance API key check.
+- A background check every `HEALTH_CHECK_INTERVAL_MIN` minutes (30 by default,
+  `0` disables it), plus a "Проверить сейчас" (Check now) button for an immediate
+  run (`POST /api/diagnostics/run`).
+- Check history: time, store, status, number of failed pings, number of failed
+  probes, and the warning texts. The UI shows the last 30 entries; up to 1000 are
+  kept in the database with automatic rotation.
+- The same data is available from chat through the `ozon_diagnostics` tool.
+
+### Degradation detector
+
+The server notices on its own that Ozon broke or switched off an endpoint — not
+from the documentation and not from work that failed, but from its own statistics.
+A tool whose last three calls in a row failed while earlier calls succeeded lands
+in the degradation list, which shows the tool name, the time of the last successful
+call, the number of consecutive errors, and the text of the latest one. On the
+dashboard that is a red banner; on the diagnostics page, a table.
+
+What this buys you: a change on Ozon's side becomes visible the day it happens,
+not a week later when you discover prices haven't been updating. The same list is
+available from chat via `ozon_degradations`.
+
+### JSON for external monitoring
+
+All of the above can be scraped programmatically, not just looked at:
+
+| Endpoint | What it returns |
+|----------|-----------------|
+| `GET /api/health` | service status, whether authentication is on, recent checks, degraded tools |
+| `GET /api/stats` | the same summary as the dashboard; `?shop=` narrows it to one store |
+| `GET /api/diagnostics/{shop_id}` | a full live diagnostic run for one store |
+
+That is enough to wire the server into Zabbix, Uptime Kuma, or a plain `curl` in cron.
 
 ## How it works
 
@@ -195,22 +294,6 @@ Non-obvious things:
 - Asynchronous ad statistics: one report at a time, ≤10 campaigns, ≤62 days. The
   tool waits up to about 2 minutes for the report to be ready.
 - Supply-order statuses in API v3 are integers 1–8, not strings.
-
-## Diagnostics
-
-![Diagnostics page](docs/img/diagnostics.png)
-
-*(the screenshot shows a demo store with deliberately invalid keys, which is why
-every probe is red)*
-
-- The `/diagnostics` page: per store — host availability, 12 Seller API category
-  probes, a Performance API key check, and the check history.
-- A background check runs every `HEALTH_CHECK_INTERVAL_MIN` minutes (30 by
-  default, `0` disables it).
-- Degradation detector: a tool that used to work and now fails consistently raises
-  a "Ozon may have changed the API" alert on the dashboard.
-- From chat: the `ozon_diagnostics` and `ozon_degradations` tools.
-- Run a check immediately: the button on the page, or `POST /api/diagnostics/run`.
 
 ## Environment variables
 
@@ -276,9 +359,11 @@ Deploying to a dedicated machine and moving stores across:
 Ozon changes its API constantly: endpoints get added, renamed and switched off
 (the limitations section above lists what has been caught so far). This server is
 the author's working tool, and it gets updated **when he needs it updated** — that
-is, when a change breaks something in his own stores. The upside is that the code
-is proven by real daily use rather than published and forgotten; the downside is
-that there is no release schedule and no commitment on turnaround.
+is, when a change breaks something in his own stores. More than five months of
+daily use, and commits appear when Ozon breaks something, not on a schedule: a gap
+between commits usually means everything is working. The upside is that the code is
+proven by real daily use rather than published and forgotten; the downside is that
+there is no release schedule and no commitment on turnaround.
 
 If you need a fix urgently, write to **d0371153@gmail.com**.
 Issues and pull requests are welcome too, and they do get read.
