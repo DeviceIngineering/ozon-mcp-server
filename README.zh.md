@@ -14,6 +14,9 @@
 与其他 Ozon MCP 服务器的区别：除 Seller API 外还覆盖广告，并且内置诊断会在 AI 助手
 撞上问题之前，先告诉你 Ozon 的哪些接口出了故障。
 
+同时也在 Wildberries 上开店？有一套同样的 WB 服务器：
+[wb-mcp-server](https://github.com/DeviceIngineering/wb-mcp-server)。
+
 这是作者自用的生产工具：已经每天使用五个多月，管理约二十个卖家账号，151 个工具。
 更新在他自己需要时才做，具体含义见[更新与支持](#更新与支持)。
 
@@ -312,6 +315,21 @@ ozon-mcp-server/
 ```
 
 部署到独立机器以及迁移店铺数据见 [DEPLOY.md](DEPLOY.md)（俄语）。
+
+## 面向 Wildberries 的同款服务器
+
+[**wb-mcp-server**](https://github.com/DeviceIngineering/wb-mcp-server) 是同一套工具
+在另一个平台上的版本（Wildberries 是俄罗斯另一家大型电商平台）：架构相同，网页界面、
+仪表盘和诊断相同，同样用 `shop_id` 管理多店铺，同样走 SSE，客户端接入方式也一样。
+它提供 202 个工具。
+
+实际意义有两点：
+
+- **上手第二套不用重新学。** 一套跑通了，另一套照着同样的步骤启动即可；区别只在端口
+  （8001 而不是 8000）和工具集。
+- **两套可以装在同一台机器上。** 端口不同，数据分别放在各自的 Docker 卷里，不会冲突。
+  在客户端里它们就是两个 MCP 服务器：`ozon` 用 `http://localhost:8000/sse`，
+  `wb` 用 `http://localhost:8001/sse`。
 
 ## 更新与支持
 

@@ -16,6 +16,9 @@ What sets it apart from other Ozon MCP servers: it covers advertising as well as
 the Seller API, and its built-in diagnostics tell you which Ozon endpoints broke
 before your assistant runs into them.
 
+Selling on Wildberries too? There is the same server for WB —
+[wb-mcp-server](https://github.com/DeviceIngineering/wb-mcp-server).
+
 This is the author's own working tool: more than five months of daily use, around
 twenty seller accounts, 151 tools. It gets updated when he needs it updated — see
 [Updates and support](#updates-and-support) for what that means for you.
@@ -353,6 +356,22 @@ ozon-mcp-server/
 
 Deploying to a dedicated machine and moving stores across:
 [DEPLOY.md](DEPLOY.md) (Russian).
+
+## The same server for Wildberries
+
+[**wb-mcp-server**](https://github.com/DeviceIngineering/wb-mcp-server) is the same
+tool for the other marketplace (Wildberries is the other large Russian
+marketplace): same architecture, same web UI with dashboard and diagnostics, same
+multi-store model via `shop_id`, same SSE transport, same ways of connecting
+clients. It ships 202 tools.
+
+In practice that means two things:
+
+- **The second server takes no new learning.** Once you have set up one, the other
+  starts the same way; only the port (8001 instead of 8000) and the tool set differ.
+- **You can run both on one machine.** Different ports, data in separate Docker
+  volumes, no conflict. In your client they are simply two MCP servers: `ozon` at
+  `http://localhost:8000/sse` and `wb` at `http://localhost:8001/sse`.
 
 ## Updates and support
 
