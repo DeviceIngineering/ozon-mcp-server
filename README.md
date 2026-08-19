@@ -1,3 +1,5 @@
+Русский · [English](README.en.md) · [中文](README.zh.md)
+
 # Ozon MCP Server
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
