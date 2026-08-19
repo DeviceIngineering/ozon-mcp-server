@@ -9,7 +9,7 @@ stdio-мост.
 
 Требуется Node.js 18+.
 
-## Способ 1 — одна команда в терминале
+## Способ 1 (рекомендуемый) — одна команда в терминале
 
 Без токена:
 
@@ -17,8 +17,25 @@ stdio-мост.
 codex mcp add ozon -- npx -y mcp-remote http://localhost:8000/sse --transport sse-only
 ```
 
-Всё после `--` — это команда, которую Codex будет запускать как stdio-сервер.
-Конфиг он запишет сам в `~/.codex/config.toml`.
+С токеном:
+
+```bash
+codex mcp add ozon -- npx -y mcp-remote http://localhost:8000/sse \
+  --transport sse-only --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
+```
+
+Всё после `--` — это команда, которую Codex будет запускать как stdio-сервер;
+конфиг он запишет сам в `~/.codex/config.toml`. Здесь пробел внутри заголовка
+безопасен: аргументы разбирает шелл, а не JSON-массив.
+
+Если токен не хочется хранить в конфиге открытым текстом, у `codex mcp add` есть
+повторяемый флаг `--env`:
+
+```bash
+codex mcp add ozon --env AUTH_HEADER="Bearer <MCP_AUTH_TOKEN>" -- \
+  npx -y mcp-remote http://localhost:8000/sse \
+  --transport sse-only --header "Authorization:${AUTH_HEADER}"
+```
 
 Проверка:
 
@@ -29,9 +46,7 @@ codex mcp get ozon
 
 и `/mcp` в TUI.
 
-Для варианта с `MCP_AUTH_TOKEN` нужен `env` — способ передать переменную окружения
-флагом `codex mcp add` в документации **не описан**, поэтому токен добавляется
-правкой TOML (способ 2).
+`--startup-timeout-sec` флагом не передаётся — это только ключ в `config.toml`.
 
 ## Способ 2 — файл конфигурации
 
@@ -78,7 +93,9 @@ startup_timeout_sec = 30
 - Дефолтный `startup_timeout_sec = 10` часто мал для холодного `npx` — поднимайте.
 - Прямое подключение по `url` заработает только если у сервера появится
   Streamable HTTP-эндпоинт; тогда токен передаётся через `bearer_token_env_var`
-  или `http_headers`/`env_http_headers`.
+  или `http_headers`/`env_http_headers`. Флаги `--url` и `--bearer-token-env-var`
+  в CLI уже есть ([openai/codex#4904](https://github.com/openai/codex/pull/4904)),
+  но это Streamable HTTP, не SSE, и в актуальной документации они не описаны.
 - Известный баг: при `bearer_token_env_var` команды `codex mcp list/get` показывают
   сервер аутентифицированным, даже если переменная процессу не видна
   ([openai/codex#30125](https://github.com/openai/codex/issues/30125)).

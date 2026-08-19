@@ -8,7 +8,7 @@
 | Клиент | SSE напрямую | Инструкция |
 |--------|--------------|------------|
 | Claude Code | да | [install-claude-code.md](install-claude-code.md) |
-| Claude Desktop | нет, нужен мост `mcp-remote` | [install-claude-desktop.md](install-claude-desktop.md) |
+| Claude Desktop | напрямую нет, через мост `mcp-remote` — да | [install-claude-desktop.md](install-claude-desktop.md) |
 | Cursor | да | [install-cursor.md](install-cursor.md) |
 | Windsurf / Devin Desktop | да | [install-windsurf.md](install-windsurf.md) |
 | VS Code (GitHub Copilot) | да | [install-vscode-copilot.md](install-vscode-copilot.md) |
@@ -17,7 +17,24 @@
 | Zed | не подтверждено, рекомендуем мост | [install-zed.md](install-zed.md) |
 | JetBrains AI Assistant / Junie | да; заголовок в AI Assistant не документирован | [install-jetbrains.md](install-jetbrains.md) |
 | Gemini CLI | да | [install-gemini-cli.md](install-gemini-cli.md) |
-| OpenAI Codex CLI | нет, нужен мост `mcp-remote` | [install-codex.md](install-codex.md) |
+| OpenAI Codex CLI | напрямую нет, через мост `mcp-remote` — да | [install-codex.md](install-codex.md) |
+
+## Где хватит одной команды
+
+Если у клиента есть команда, которая сама пропишет конфиг, в его инструкции она
+стоит первым способом:
+
+| Клиент | Команда | Заголовок с токеном |
+|--------|---------|---------------------|
+| Claude Code | `claude mcp add --transport sse ozon http://localhost:8000/sse` | `--header` |
+| Gemini CLI | `gemini mcp add --transport sse ozon http://localhost:8000/sse` | `--header` |
+| Devin (Windsurf) | `devin mcp add ozon --transport http --url http://localhost:8000/sse` | `-H` |
+| Codex CLI | `codex mcp add ozon -- npx -y mcp-remote http://localhost:8000/sse --transport sse-only` | в аргументах моста |
+| VS Code | `code --add-mcp '{"name":"ozon","type":"sse","url":"…"}'` | в JSON, пример с `headers` документацией не подтверждён |
+| Cline | `cline mcp install ozon --transport sse http://localhost:8000/sse` | нет, только файлом |
+
+У Cursor, Continue.dev, Zed, JetBrains и Claude Desktop такой команды нет —
+там правка файла или интерфейс.
 
 Всё проверено по официальной документации клиентов 19 августа 2026. Где
 документация молчит, в инструкции стоит пометка «не подтверждено» — это значит,

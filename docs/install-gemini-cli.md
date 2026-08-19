@@ -18,8 +18,11 @@ gemini mcp add --transport sse --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
   ozon http://localhost:8000/sse
 ```
 
-Флаги `gemini mcp add`: `--transport sse|http`, `--header "Name: value"`
-(можно повторять), `--timeout <ms>`, `-s, --scope user|project`, `--trust`.
+Флаги `gemini mcp add`: `-t, --transport stdio|sse|http` (по умолчанию `stdio`,
+поэтому `--transport sse` обязателен), `-H, --header "Name: value"` (можно
+повторять), `-e, --env KEY=value`, `--timeout <ms>`, `-s, --scope user|project`
+(по умолчанию `project` — для доступа из всех проектов берите `-s user`),
+`--trust`.
 
 ## Способ 2 — правка файла конфигурации
 

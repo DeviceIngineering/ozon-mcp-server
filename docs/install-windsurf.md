@@ -62,12 +62,19 @@
 ### Способ 1 — команда в терминале
 
 ```bash
-devin mcp add ozon --url http://localhost:8000/sse
+devin mcp add ozon --transport http --url http://localhost:8000/sse \
+  -H "Authorization: Bearer <MCP_AUTH_TOKEN>" -s user
 ```
 
-Скоуп задаётся флагом `-s project|user`. Передать заголовок этой командой нельзя:
-если `MCP_AUTH_TOKEN` задан, допишите блок `headers` в файл руками (способ 2) или
-укажите токен прямо в URL — `http://localhost:8000/sse?token=<MCP_AUTH_TOKEN>`.
+Без токена — уберите `-H`.
+
+Флаги `devin mcp add`: `-t, --transport stdio|http`, `--url`, `--command`,
+`-e, --env KEY=VALUE`, `-H, --header "Name: value"`, `-s, --scope local|project|user`
+(по умолчанию `local`).
+
+Значения `sse` у флага `--transport` нет: http-транспорт сам откатывается на
+legacy SSE, получив 4xx. Если откат не сработает (у нас SSE живёт на отдельном
+пути `/sse`), пропишите `"transport": "sse"` в файле — способ 2.
 
 ### Способ 2 — файлы конфигурации
 

@@ -14,7 +14,8 @@ MCP-серверу **из облачной инфраструктуры Anthropi
 пользуемся: `mcp-remote` стартует на вашей машине как обычный stdio-сервер и уже
 из неё ходит на `http://localhost:8000/sse`.
 
-Требуется Node.js 18+.
+Требуется Node.js 18+. Своего CLI у Claude Desktop нет — только Settings и правка
+`claude_desktop_config.json`.
 
 ## Файл конфигурации
 
