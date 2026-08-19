@@ -111,3 +111,7 @@ ozon-mcp-server/
   в поиске используйте ozon_product_queries.
 - /v3/finance/transaction/* отключаются 06.07.2026.
 - supply-order v3: статусы — целочисленные коды 1-8.
+
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).
