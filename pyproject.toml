@@ -4,7 +4,15 @@ version = "2.0.0"
 description = "MCP-сервер для Ozon Seller API + Performance API"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp[cli]>=1.0.0",
+    # ВНИМАНИЕ: верхняя граница обязательна.
+    # В mcp 2.0.0 low-level API переписан: у mcp.server.Server больше нет
+    # декораторов @app.list_tools() / @app.call_tool() — обработчики передаются
+    # в конструктор (on_list_tools / on_call_tool) и возвращают ListToolsResult /
+    # CallToolResult вместо list[Tool] / list[TextContent]. С mcp>=2 сервер падает
+    # ещё на импорте: AttributeError: 'Server' object has no attribute 'list_tools'.
+    # Снимать ограничение можно только вместе с переписыванием ozon_mcp/server.py
+    # (см. TODO там же).
+    "mcp[cli]>=1.0.0,<2",
     "httpx>=0.27.0",
     "pydantic>=2.0.0",
     "fastapi>=0.115.0",

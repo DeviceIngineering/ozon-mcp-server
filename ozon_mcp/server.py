@@ -780,6 +780,13 @@ TOOLS = [
 
 
 # ─── Регистрация ──────────────────────────────────────────
+#
+# TODO(mcp 2.x): декораторного low-level API (@app.list_tools / @app.call_tool)
+# в mcp>=2.0.0 больше нет — обработчики передаются в Server(...) как
+# on_list_tools / on_call_tool и возвращают ListToolsResult / CallToolResult.
+# Пока зависимость закреплена как mcp[cli]<2 (см. pyproject.toml); переход на 2.x
+# — отдельная задача, вместе с миграцией с устаревшего SSE-транспорта на
+# Streamable HTTP.
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
