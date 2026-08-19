@@ -5,17 +5,9 @@
 Транспорт в Gemini CLI выбирается именем ключа: `command` → stdio,
 `url` → SSE, `httpUrl` → Streamable HTTP. Отдельного поля `type` нет.
 
-## Файлы конфигурации
+Графического интерфейса нет — всё делается одной командой.
 
-| Область | Путь |
-|---------|------|
-| Пользователь (macOS, Linux) | `~/.gemini/settings.json` |
-| Пользователь (Windows) | `%USERPROFILE%\.gemini\settings.json` |
-| Проект | `<проект>/.gemini/settings.json` |
-
-Графического интерфейса нет.
-
-## Быстрый способ — одна команда
+## Способ 1 (рекомендуемый) — команда в терминале
 
 ```bash
 # без токена
@@ -29,7 +21,13 @@ gemini mcp add --transport sse --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
 Флаги `gemini mcp add`: `--transport sse|http`, `--header "Name: value"`
 (можно повторять), `--timeout <ms>`, `-s, --scope user|project`, `--trust`.
 
-## То же самое в JSON
+## Способ 2 — правка файла конфигурации
+
+| Область | Путь |
+|---------|------|
+| Пользователь (macOS, Linux) | `~/.gemini/settings.json` |
+| Пользователь (Windows) | `%USERPROFILE%\.gemini\settings.json` |
+| Проект | `<проект>/.gemini/settings.json` |
 
 Без токена:
 

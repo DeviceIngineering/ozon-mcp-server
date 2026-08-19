@@ -9,7 +9,31 @@ stdio-мост.
 
 Требуется Node.js 18+.
 
-## Файл конфигурации
+## Способ 1 — одна команда в терминале
+
+Без токена:
+
+```bash
+codex mcp add ozon -- npx -y mcp-remote http://localhost:8000/sse --transport sse-only
+```
+
+Всё после `--` — это команда, которую Codex будет запускать как stdio-сервер.
+Конфиг он запишет сам в `~/.codex/config.toml`.
+
+Проверка:
+
+```bash
+codex mcp list
+codex mcp get ozon
+```
+
+и `/mcp` в TUI.
+
+Для варианта с `MCP_AUTH_TOKEN` нужен `env` — способ передать переменную окружения
+флагом `codex mcp add` в документации **не описан**, поэтому токен добавляется
+правкой TOML (способ 2).
+
+## Способ 2 — файл конфигурации
 
 | ОС | Путь |
 |----|------|
@@ -19,7 +43,7 @@ stdio-мост.
 Графического интерфейса нет; управление — `codex mcp add|list|get|remove` и
 команда `/mcp` в TUI.
 
-## Без токена
+### Без токена
 
 ```toml
 [mcp_servers.ozon]
@@ -28,7 +52,7 @@ args = ["-y", "mcp-remote", "http://localhost:8000/sse", "--transport", "sse-onl
 startup_timeout_sec = 30
 ```
 
-## С `MCP_AUTH_TOKEN`
+### С `MCP_AUTH_TOKEN`
 
 ```toml
 [mcp_servers.ozon]
@@ -46,21 +70,6 @@ startup_timeout_sec = 30
 
 Если сервер не на localhost (например `http://192.168.1.50:8000/sse`), добавьте
 в `args` флаг `--allow-http`.
-
-## То же самое одной командой
-
-```bash
-codex mcp add ozon -- npx -y mcp-remote http://localhost:8000/sse --transport sse-only
-```
-
-## Проверка
-
-```bash
-codex mcp list
-codex mcp get ozon
-```
-
-и `/mcp` в TUI.
 
 ## Оговорки
 
