@@ -1,10 +1,17 @@
-Русский · [English](README.en.md) · [中文](README.zh.md)
+<div align="center">
+
+![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-0A66C2?style=for-the-badge)
+[![English](https://img.shields.io/badge/English-8B949E?style=for-the-badge)](README.en.md)
+[![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-8B949E?style=for-the-badge)](README.zh.md)
+
+</div>
 
 # Ozon MCP Server
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](#что-умеет)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![Transport](https://img.shields.io/badge/transport-SSE-lightgrey.svg)](#как-это-устроено)
 
 Управляйте магазинами Ozon прямо из чата с ИИ-ассистентом: цены, акции, реклама,
 заказы, возвраты, отзывы, финансы — 151 инструмент поверх Ozon Seller API и
@@ -22,6 +29,13 @@ Performance API.
 порядка двадцати кабинетов, 151 инструмент. Обновляется он по мере собственной
 необходимости автора — подробности в разделе
 [«Обновления и поддержка»](#обновления-и-поддержка).
+
+```
+Ты: Какие мои товары Ozon планирует затянуть в акцию?
+Ты: Покажи расход по рекламным кампаниям за неделю и останови те, что тратят впустую.
+Ты: У каких товаров индекс цены хуже, чем у конкурентов?
+Ты: Ответь благодарностью на все новые отзывы с оценкой 5.
+```
 
 ![Дашборд Ozon MCP Server](docs/img/dashboard.png)
 
@@ -47,8 +61,9 @@ Performance API.
 | Компания | 2 | данные продавца и тарифы |
 | Магазины | 1 | список подключённых магазинов и их `shop_id` |
 
-Полный список имён — в `ozon_mcp/server.py` (константа `TOOLS`) или через
-`tools/list` любого MCP-клиента.
+Полный нумерованный список с описанием каждого инструмента и его параметров —
+в **[docs/tools.md](docs/tools.md)**. Он сгенерирован из `ozon_mcp/server.py`
+(константа `TOOLS`) — то же самое отдаёт `tools/list` любому MCP-клиенту.
 
 ## Быстрый старт
 
@@ -86,9 +101,13 @@ open http://localhost:8000/shops   # добавить магазин и ключ
 | `http://localhost:8000/api/health` | health-эндпоинт, JSON |
 | `http://localhost:8000/sse` | **эндпоинт MCP**, его и указывают клиентам |
 
+Остановить: `docker compose down` (данные останутся в томе `ozon_data`).
+Логи: `docker compose logs -f`.
+
 ### Без Docker
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate
 pip install .
 DATA_DIR=./data PORT=8000 ozon-mcp-web
 ```
@@ -171,6 +190,7 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
   кто имеет сетевой доступ к порту, тот видит дашборд и может добавлять магазины.
 - Не пробрасывайте порт 8000 в интернет напрямую. Для доступа извне — Tailscale
   или VPN.
+- HTTPS сервер не терминирует. Нужен внешний доступ по TLS — ставьте reverse proxy.
 
 ## Веб-интерфейс: видно каждый вызов
 
@@ -274,6 +294,13 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
 - **`ozon_mcp/stats.py`** — SQLite через `aiosqlite`: каждый вызов инструмента с
   временем и результатом, история health-проверок, расчёт деградаций.
 
+Хосты, в которые ходит сервер:
+
+| API | Базовый URL | Авторизация |
+|-----|-------------|-------------|
+| Seller API | api-seller.ozon.ru | заголовки `Client-Id` и `Api-Key` |
+| Performance API (реклама) | api-performance.ozon.ru | OAuth `client_credentials`, токен на 30 минут |
+
 Неочевидные места:
 
 - Ставки и бюджеты рекламы Ozon отдаёт в **микрорублях**: `1000000` = 1 ₽.
@@ -311,6 +338,9 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
 - Цифровые акты приёма-передачи FBS удалены Ozon 22.03.2026 — используется обычный акт.
 - Метода «обновить ответ на отзыв» в Ozon API нет: ответ удаляется и создаётся заново.
 
+Список собран не переписыванием справки: это журнал деградаций и пять месяцев
+ежедневных вызовов, сверенные с документацией docs.ozon.ru по состоянию на июнь 2026.
+
 ## Что изменилось в версии 2.0
 
 Полная ревизия под Ozon API июня 2026 со сверкой живыми запросами: единый список
@@ -326,7 +356,7 @@ ozon-mcp-server/
 ├── docker-compose.yml   # порт 8000, том ozon_data
 ├── Dockerfile           # python:3.12-slim, uvicorn
 ├── DEPLOY.md            # деплой на отдельную машину, перенос данных
-├── docs/                # инструкции по подключению клиентов
+├── docs/                # подключение клиентов + справочник инструментов
 └── ozon_mcp/
     ├── server.py        # MCP-сервер: 151 инструмент, мульти-магазин
     ├── client.py        # Seller API + Performance API
@@ -344,7 +374,13 @@ ozon-mcp-server/
 [**wb-mcp-server**](https://github.com/DeviceIngineering/wb-mcp-server) — тот же
 инструмент для второй площадки: одна архитектура, тот же веб-интерфейс с
 дашбордом и диагностикой, та же мульти-магазинность через `shop_id`, тот же
-транспорт SSE и те же способы подключения к клиентам. Инструментов там 202.
+транспорт SSE и те же способы подключения к клиентам.
+
+|  | Ozon MCP Server | WB MCP Server |
+|---|---|---|
+| Порт | 8000 | 8001 |
+| Инструментов | 151 | 202 |
+| API | Ozon Seller API + Performance API (реклама) | Wildberries Seller API |
 
 Практически это значит две вещи:
 
@@ -354,6 +390,11 @@ ozon-mcp-server/
 - **Держать оба на одной машине можно.** Порты разные, данные лежат в разных
   Docker-томах, конфликта нет. В клиенте это просто два MCP-сервера: `ozon` на
   `http://localhost:8000/sse` и `wb` на `http://localhost:8001/sse`.
+
+Соседство на одном сервере не мешает и по лимитам: наружу оба ходят с одного IP,
+но Ozon и Wildberries считают лимиты каждый у себя — это разные площадки.
+Ограничение по числу кабинетов из раздела про мульти-магазин действует внутри
+каждой площадки отдельно.
 
 ## Обновления и поддержка
 

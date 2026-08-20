@@ -1,10 +1,17 @@
-[Русский](README.md) · [English](README.en.md) · 中文
+<div align="center">
+
+[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](README.md)
+[![English](https://img.shields.io/badge/English-8B949E?style=for-the-badge)](README.en.md)
+![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-0A66C2?style=for-the-badge)
+
+</div>
 
 # Ozon MCP Server
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](#功能一览)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![Transport](https://img.shields.io/badge/transport-SSE-lightgrey.svg)](#实现原理)
 
 在与 AI 助手的对话中直接打理你的 Ozon 店铺：价格、促销、广告、订单、退货、评价、
 财务——基于 Ozon Seller API 与 Performance API 的 151 个工具（Ozon 是俄罗斯最大的
@@ -23,6 +30,13 @@
 > `docs/` 里各客户端的安装说明目前**只有俄语版**。不过其中的配置都是可直接粘贴的
 > JSON，不依赖语言即可看懂：配置文件路径、地址 `http://localhost:8000/sse`，以及
 > 请求头 `Authorization: Bearer <MCP_AUTH_TOKEN>`。
+
+```
+你：我的哪些商品 Ozon 打算拉进促销？
+你：把本周各广告计划的花费列出来，并停掉那些白烧钱的。
+你：哪些商品的价格指数比竞品差？
+你：给所有新的五星评价回复一句感谢。
+```
 
 ![Ozon MCP Server 仪表盘](docs/img/dashboard.png)
 
@@ -51,8 +65,9 @@
 FBO 与 FBS 是 Ozon 的两种履约模式：FBO 由 Ozon 仓库发货，FBS 由卖家自己的仓库发货，
 rFBS 则是卖家自行配送的 FBS。
 
-完整的工具名称列表见 `ozon_mcp/server.py` 中的 `TOOLS` 常量，或用任意 MCP 客户端
-调用 `tools/list` 查看。
+带编号的完整清单，包含每个工具的说明与参数，见 **[docs/tools.md](docs/tools.md)**。
+它由 `ozon_mcp/server.py` 中的 `TOOLS` 常量生成——任意 MCP 客户端调用 `tools/list`
+拿到的也是同一份。
 
 ## 快速开始
 
@@ -91,9 +106,13 @@ open http://localhost:8000/shops   # 添加店铺与 Ozon 密钥
 
 请注意，网页界面是俄语的。
 
+停止：`docker compose down`（数据保留在 `ozon_data` 卷中）。
+查看日志：`docker compose logs -f`。
+
 ### 不使用 Docker
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate
 pip install .
 DATA_DIR=./data PORT=8000 ozon-mcp-web
 ```
@@ -168,6 +187,7 @@ Ozon 的限流也按地址计算，账号越多、策略跑得越勤，总流量
 - 网页界面（`/`、`/shops`、`/diagnostics`）和 `/api/*` **不受令牌保护**：任何能访问到
   该端口的人都能看到仪表盘，并且能添加店铺。
 - 不要把 8000 端口直接暴露到公网。需要远程访问请用 Tailscale 或 VPN。
+- 服务器不终止 HTTPS。需要对外提供 TLS，请在前面加反向代理。
 
 ## 网页界面：每一次调用都看得见
 
@@ -254,6 +274,13 @@ Fernet 加密，加密密钥放在 `DATA_DIR/.encryption_key`，界面上密钥�
 - **`ozon_mcp/stats.py`**——通过 `aiosqlite` 使用 SQLite：记录每次工具调用的耗时与结果、
   健康检查历史，并据此计算接口劣化。
 
+服务器会访问的主机：
+
+| API | 基础 URL | 鉴权方式 |
+|-----|----------|----------|
+| Seller API | api-seller.ozon.ru | 请求头 `Client-Id` 与 `Api-Key` |
+| Performance API（广告） | api-performance.ozon.ru | OAuth `client_credentials`，令牌有效期 30 分钟 |
+
 一些不那么直观的地方：
 
 - Ozon 的广告出价和预算单位是**微卢布**：`1000000` = 1 ₽。看到七位数不用惊讶。
@@ -289,6 +316,9 @@ Fernet 加密，加密密钥放在 `DATA_DIR/.encryption_key`，界面上密钥�
 - FBS 电子交接单已被 Ozon 于 2026-03-22 移除，改用普通交接单。
 - Ozon API 没有「修改评价回复」的方法：只能删除原回复后重新发布。
 
+这份清单不是照抄文档：它来自接口劣化日志和五个多月的日常调用，并对照
+docs.ozon.ru 截至 2026 年 6 月的文档做了核对。
+
 ## 2.0 版本的变化
 
 对照 2026 年 6 月的 Ozon API 做了一轮彻底梳理，并逐个发真实请求核对过，而不是只看文档：
@@ -303,7 +333,7 @@ ozon-mcp-server/
 ├── docker-compose.yml   # 8000 端口，ozon_data 数据卷
 ├── Dockerfile           # python:3.12-slim, uvicorn
 ├── DEPLOY.md            # 部署到独立机器、迁移数据
-├── docs/                # 各客户端接入说明
+├── docs/                # 各客户端接入说明 + 工具清单
 └── ozon_mcp/
     ├── server.py        # MCP 服务器：151 个工具，多店铺
     ├── client.py        # Seller API + Performance API
@@ -321,7 +351,12 @@ ozon-mcp-server/
 [**wb-mcp-server**](https://github.com/DeviceIngineering/wb-mcp-server) 是同一套工具
 在另一个平台上的版本（Wildberries 是俄罗斯另一家大型电商平台）：架构相同，网页界面、
 仪表盘和诊断相同，同样用 `shop_id` 管理多店铺，同样走 SSE，客户端接入方式也一样。
-它提供 202 个工具。
+
+|  | Ozon MCP Server | WB MCP Server |
+|---|---|---|
+| 端口 | 8000 | 8001 |
+| 工具数 | 151 | 202 |
+| API | Ozon Seller API + Performance API（广告） | Wildberries Seller API |
 
 实际意义有两点：
 
@@ -330,6 +365,10 @@ ozon-mcp-server/
 - **两套可以装在同一台机器上。** 端口不同，数据分别放在各自的 Docker 卷里，不会冲突。
   在客户端里它们就是两个 MCP 服务器：`ozon` 用 `http://localhost:8000/sse`，
   `wb` 用 `http://localhost:8001/sse`。
+
+放在同一台机器上也不会因为限流而互相拖累：两者出网 IP 相同，但 Ozon 和 Wildberries
+各自统计自己的配额——它们是不同的平台。多店铺一节里说的账号数量上限，是在每个平台
+内部分别生效的。
 
 ## 更新与支持
 

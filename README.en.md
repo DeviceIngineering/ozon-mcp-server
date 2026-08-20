@@ -1,10 +1,17 @@
-[Русский](README.md) · English · [中文](README.zh.md)
+<div align="center">
+
+[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](README.md)
+![English](https://img.shields.io/badge/English-0A66C2?style=for-the-badge)
+[![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-8B949E?style=for-the-badge)](README.zh.md)
+
+</div>
 
 # Ozon MCP Server
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](#what-it-does)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![Transport](https://img.shields.io/badge/transport-SSE-lightgrey.svg)](#how-it-works)
 
 Run your Ozon stores straight from a chat with an AI assistant: prices, promos,
 advertising, orders, returns, reviews, finances — 151 tools on top of the Ozon
@@ -27,6 +34,13 @@ twenty seller accounts, 151 tools. It gets updated when he needs it updated — 
 > The configuration in them is ready-to-paste JSON, which reads the same in any
 > language: file paths, the URL `http://localhost:8000/sse`, and the header
 > `Authorization: Bearer <MCP_AUTH_TOKEN>`.
+
+```
+You: Which of my products is Ozon planning to pull into a promo?
+You: Show ad campaign spend for the week and stop the ones burning money.
+You: Which products have a worse price index than their competitors?
+You: Reply with a thank-you to every new 5-star review.
+```
 
 ![Ozon MCP Server dashboard](docs/img/dashboard.png)
 
@@ -55,8 +69,9 @@ twenty seller accounts, 151 tools. It gets updated when he needs it updated — 
 FBO and FBS are Ozon's fulfilment models: FBO ships from Ozon's warehouses,
 FBS from yours, rFBS is FBS with your own delivery.
 
-For the full list of tool names see `ozon_mcp/server.py` (the `TOOLS` constant),
-or call `tools/list` from any MCP client.
+The full numbered list, with a description and the parameters of every tool, is in
+**[docs/tools.md](docs/tools.md)**. It is generated from `ozon_mcp/server.py` (the
+`TOOLS` constant) — the same thing `tools/list` returns to any MCP client.
 
 ## Quick start
 
@@ -96,9 +111,13 @@ Once it's running:
 
 Note that the web UI is in Russian.
 
+To stop: `docker compose down` (the data stays in the `ozon_data` volume).
+Logs: `docker compose logs -f`.
+
 ### Without Docker
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate
 pip install .
 DATA_DIR=./data PORT=8000 ozon-mcp-web
 ```
@@ -183,6 +202,8 @@ What to know about access:
   token: anyone who can reach the port sees the dashboard and can add stores.
 - Do not expose port 8000 to the internet directly. For remote access use
   Tailscale or a VPN.
+- The server does not terminate HTTPS. If you need TLS from outside, put a reverse
+  proxy in front.
 
 ## The web UI: every call is visible
 
@@ -286,6 +307,13 @@ server and the web UI.
 - **`ozon_mcp/stats.py`** — SQLite via `aiosqlite`: every tool call with its
   duration and outcome, health-check history, degradation calculation.
 
+The hosts the server talks to:
+
+| API | Base URL | Authorization |
+|-----|----------|---------------|
+| Seller API | api-seller.ozon.ru | `Client-Id` and `Api-Key` headers |
+| Performance API (ads) | api-performance.ozon.ru | OAuth `client_credentials`, 30-minute token |
+
 Non-obvious things:
 
 - Ozon returns ad bids and budgets in **micro-rubles**: `1000000` = 1 ₽. Don't be
@@ -327,6 +355,9 @@ Non-obvious things:
 - The Ozon API has no "edit a review reply" method: the reply is deleted and
   written again.
 
+This list is not a rewrite of the reference: it comes from the degradation log and
+five months of daily calls, cross-checked against docs.ozon.ru as of June 2026.
+
 ## What changed in version 2.0
 
 A full revision against the June 2026 Ozon API, verified by running real requests
@@ -343,7 +374,7 @@ ozon-mcp-server/
 ├── docker-compose.yml   # port 8000, ozon_data volume
 ├── Dockerfile           # python:3.12-slim, uvicorn
 ├── DEPLOY.md            # deploying to a dedicated machine, moving data
-├── docs/                # client connection guides
+├── docs/                # client connection guides + tool reference
 └── ozon_mcp/
     ├── server.py        # MCP server: 151 tools, multi-store
     ├── client.py        # Seller API + Performance API
@@ -363,7 +394,13 @@ Deploying to a dedicated machine and moving stores across:
 tool for the other marketplace (Wildberries is the other large Russian
 marketplace): same architecture, same web UI with dashboard and diagnostics, same
 multi-store model via `shop_id`, same SSE transport, same ways of connecting
-clients. It ships 202 tools.
+clients.
+
+|  | Ozon MCP Server | WB MCP Server |
+|---|---|---|
+| Port | 8000 | 8001 |
+| Tools | 151 | 202 |
+| API | Ozon Seller API + Performance API (ads) | Wildberries Seller API |
 
 In practice that means two things:
 
@@ -372,6 +409,11 @@ In practice that means two things:
 - **You can run both on one machine.** Different ports, data in separate Docker
   volumes, no conflict. In your client they are simply two MCP servers: `ozon` at
   `http://localhost:8000/sse` and `wb` at `http://localhost:8001/sse`.
+
+Sharing one machine does not hurt on rate limits either: both go out from the same
+IP, but Ozon and Wildberries count limits on their own side — they are different
+marketplaces. The cap on the number of seller accounts described in the multi-store
+section applies within each marketplace separately.
 
 ## Updates and support
 
