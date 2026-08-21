@@ -1,0 +1,53 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.DeviceIngineering/ozon-mcp-server",
+  "description": "Ozon Seller & Performance API: 151 tools — prices, promos, ads, orders, finance. Multi-shop.",
+  "repository": {
+    "url": "https://github.com/DeviceIngineering/ozon-mcp-server",
+    "source": "github"
+  },
+  "version": "2.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "ozon-mcp-server",
+      "version": "2.0.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "OZON_CLIENT_ID",
+          "description": "Ozon Seller API Client-Id from seller.ozon.ru (Settings - API keys)",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "OZON_API_KEY",
+          "description": "Ozon Seller API key",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "OZON_PERF_CLIENT_ID",
+          "description": "Ozon Performance API Client-Id, needed only for advertising tools",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "OZON_PERF_CLIENT_SECRET",
+          "description": "Ozon Performance API client secret",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "DATA_DIR",
+          "description": "Directory for shops.json, stats.db and the encryption key. Defaults to /data; set it to a writable path for a local install, e.g. ~/.ozon-mcp",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
