@@ -1,16 +1,16 @@
 <div align="center">
 
-[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](README.md)
+[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/README.md)
 ![English](https://img.shields.io/badge/English-0A66C2?style=for-the-badge)
-[![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-8B949E?style=for-the-badge)](README.zh.md)
+[![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-8B949E?style=for-the-badge)](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/README.zh.md)
 
 </div>
 
 # Ozon MCP Server
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/pyproject.toml)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/tools.md)
 [![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
 [![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#how-it-works)
 
@@ -43,7 +43,7 @@ You: Which products have a worse price index than their competitors?
 You: Reply with a thank-you to every new 5-star review.
 ```
 
-![Ozon MCP Server dashboard](docs/img/dashboard.png)
+![Ozon MCP Server dashboard](https://raw.githubusercontent.com/DeviceIngineering/ozon-mcp-server/main/docs/img/dashboard.png)
 
 ## What it does
 
@@ -71,7 +71,7 @@ FBO and FBS are Ozon's fulfilment models: FBO ships from Ozon's warehouses,
 FBS from yours, rFBS is FBS with your own delivery.
 
 The full numbered list, with a description and the parameters of every tool, is in
-**[docs/tools.md](docs/tools.md)**. It is generated from `ozon_mcp/server.py` (the
+**[docs/tools.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/tools.md)**. It is generated from `ozon_mcp/server.py` (the
 `TOOLS` constant) — the same thing `tools/list` returns to any MCP client.
 
 ## Quick start
@@ -175,17 +175,17 @@ JSON — **in Russian**, but the JSON blocks are language-neutral:
 
 | Client | SSE directly | Guide |
 |--------|--------------|-------|
-| Claude Code | yes | [docs/install-claude-code.md](docs/install-claude-code.md) |
-| Claude Desktop | no, `mcp-remote` bridge | [docs/install-claude-desktop.md](docs/install-claude-desktop.md) |
-| Cursor | yes | [docs/install-cursor.md](docs/install-cursor.md) |
-| Windsurf / Devin Desktop | yes | [docs/install-windsurf.md](docs/install-windsurf.md) |
-| VS Code (GitHub Copilot) | yes | [docs/install-vscode-copilot.md](docs/install-vscode-copilot.md) |
-| Cline | yes | [docs/install-cline.md](docs/install-cline.md) |
-| Continue.dev | yes | [docs/install-continue.md](docs/install-continue.md) |
-| Zed | unconfirmed, bridge recommended | [docs/install-zed.md](docs/install-zed.md) |
-| JetBrains AI Assistant / Junie | yes | [docs/install-jetbrains.md](docs/install-jetbrains.md) |
-| Gemini CLI | yes | [docs/install-gemini-cli.md](docs/install-gemini-cli.md) |
-| OpenAI Codex CLI | no, `mcp-remote` bridge | [docs/install-codex.md](docs/install-codex.md) |
+| Claude Code | yes | [docs/install-claude-code.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-claude-code.md) |
+| Claude Desktop | no, `mcp-remote` bridge | [docs/install-claude-desktop.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-claude-desktop.md) |
+| Cursor | yes | [docs/install-cursor.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-cursor.md) |
+| Windsurf / Devin Desktop | yes | [docs/install-windsurf.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-windsurf.md) |
+| VS Code (GitHub Copilot) | yes | [docs/install-vscode-copilot.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-vscode-copilot.md) |
+| Cline | yes | [docs/install-cline.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-cline.md) |
+| Continue.dev | yes | [docs/install-continue.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-continue.md) |
+| Zed | unconfirmed, bridge recommended | [docs/install-zed.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-zed.md) |
+| JetBrains AI Assistant / Junie | yes | [docs/install-jetbrains.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-jetbrains.md) |
+| Gemini CLI | yes | [docs/install-gemini-cli.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-gemini-cli.md) |
+| OpenAI Codex CLI | no, `mcp-remote` bridge | [docs/install-codex.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/install-codex.md) |
 
 The shortest example, Claude Code:
 
@@ -194,7 +194,7 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
   --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
 ```
 
-Client summary and the bridge reference: [docs/README.md](docs/README.md).
+Client summary and the bridge reference: [docs/README.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/docs/README.md).
 
 ## Multi-store and security
 
@@ -231,7 +231,7 @@ How keys are stored:
   overwrite the real one;
 - under Docker all of this lives in the `ozon_data` volume. To move to another
   machine, copy the whole volume — otherwise you lose the encryption key
-  (see [DEPLOY.md](DEPLOY.md), Russian).
+  (see [DEPLOY.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/DEPLOY.md), Russian).
 
 What to know about access:
 
@@ -274,7 +274,7 @@ The screenshot is at the top of this page.
 
 ### Stores `/shops`
 
-![Stores page](docs/img/shops.png)
+![Stores page](https://raw.githubusercontent.com/DeviceIngineering/ozon-mcp-server/main/docs/img/shops.png)
 
 Accounts are added and removed right in the browser, with no file editing and no
 container restart. The "Проверить" (Test) button makes a live request to both APIs
@@ -285,7 +285,7 @@ keys masked.
 
 ### Diagnostics `/diagnostics`
 
-![Diagnostics page](docs/img/diagnostics.png)
+![Diagnostics page](https://raw.githubusercontent.com/DeviceIngineering/ozon-mcp-server/main/docs/img/diagnostics.png)
 
 *(the screenshot shows a demo store with deliberately invalid keys, which is why
 every probe is red)*
@@ -427,7 +427,7 @@ ozon-mcp-server/
 ```
 
 Deploying to a dedicated machine and moving stores across:
-[DEPLOY.md](DEPLOY.md) (Russian).
+[DEPLOY.md](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/DEPLOY.md) (Russian).
 
 ## The same server for Wildberries
 
@@ -472,7 +472,7 @@ Issues and pull requests are welcome too, and they do get read.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/DeviceIngineering/ozon-mcp-server/blob/main/LICENSE).
 
 ## MCP Registry
 
