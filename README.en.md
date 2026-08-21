@@ -473,3 +473,11 @@ Issues and pull requests are welcome too, and they do get read.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## MCP Registry
+
+Published in the official [MCP Registry](https://registry.modelcontextprotocol.io/):
+
+```
+mcp-name: io.github.DeviceIngineering/ozon-mcp-server
+```
