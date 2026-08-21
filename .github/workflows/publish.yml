@@ -1,0 +1,71 @@
+name: Publish to PyPI
+
+# Публикация по тегу вида v2.0.0 — или вручную из вкладки Actions.
+#
+# Токены не нужны: используется Trusted Publishing (OIDC). PyPI доверяет
+# именно этому репозиторию и именно этому workflow, секреты нигде не хранятся.
+#
+# Разовая настройка на стороне PyPI (делается один раз, вручную):
+#   pypi.org → Your projects → Publishing → Add a new pending publisher
+#     PyPI Project Name: ozon-mcp-server
+#     Owner:             DeviceIngineering
+#     Repository name:   ozon-mcp-server
+#     Workflow name:     publish.yml
+#     Environment name:  оставить пустым
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Сборка пакета
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Установить build
+        run: python -m pip install --upgrade build
+
+      - name: Собрать sdist и wheel
+        run: python -m build
+
+      - name: Проверить метаданные
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check dist/*
+
+      - name: Проверить, что пакет ставится и отвечает
+        run: |
+          python -m venv /tmp/check
+          /tmp/check/bin/pip install --quiet dist/*.whl
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            | timeout 30 /tmp/check/bin/ozon-mcp > /tmp/out.json
+          grep -q '"name":"ozon-mcp-server"' /tmp/out.json
+          echo "stdio-сервер ответил на initialize"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Публикация на PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # обязательно для Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Загрузить на PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
