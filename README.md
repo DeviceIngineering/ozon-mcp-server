@@ -11,7 +11,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
-[![Transport](https://img.shields.io/badge/transport-SSE-lightgrey.svg)](#как-это-устроено)
+[![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#как-это-устроено)
+[![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
 
 Управляйте магазинами Ozon прямо из чата с ИИ-ассистентом: цены, акции, реклама,
 заказы, возвраты, отзывы, финансы — 151 инструмент поверх Ozon Seller API и
@@ -67,7 +68,47 @@ Performance API.
 
 ## Быстрый старт
 
-Нужен Docker. Пять команд:
+### Вариант 1: одна команда, без Docker
+
+Сервер работает по stdio — так его подключают Claude Desktop, Cursor, VS Code и
+другие MCP-клиенты. Ничего собирать не нужно:
+
+```bash
+uvx ozon-mcp-server
+```
+
+Или через pip:
+
+```bash
+pip install ozon-mcp-server
+ozon-mcp
+```
+
+Конфигурация клиента (например, `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "ozon": {
+      "command": "uvx",
+      "args": ["ozon-mcp-server"],
+      "env": {
+        "OZON_CLIENT_ID": "ваш Client-Id",
+        "OZON_API_KEY": "ваш API-ключ",
+        "DATA_DIR": "~/.ozon-mcp"
+      }
+    }
+  }
+}
+```
+
+`DATA_DIR` укажите на любой доступный для записи каталог — там хранятся магазины,
+ключи и статистика. По умолчанию используется `/data` (путь для Docker).
+
+### Вариант 2: Docker с веб-интерфейсом
+
+Нужен, если хотите дашборд, диагностику Ozon API и удобное добавление магазинов
+через браузер. Пять команд:
 
 ```bash
 git clone https://github.com/DeviceIngineering/ozon-mcp-server.git

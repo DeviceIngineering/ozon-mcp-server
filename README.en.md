@@ -11,7 +11,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
-[![Transport](https://img.shields.io/badge/transport-SSE-lightgrey.svg)](#how-it-works)
+[![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
+[![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#how-it-works)
 
 Run your Ozon stores straight from a chat with an AI assistant: prices, promos,
 advertising, orders, returns, reviews, finances — 151 tools on top of the Ozon
@@ -75,7 +76,47 @@ The full numbered list, with a description and the parameters of every tool, is 
 
 ## Quick start
 
-You need Docker. Five commands:
+### Option 1: one command, no Docker
+
+The server speaks stdio, which is how Claude Desktop, Cursor, VS Code and other
+MCP clients connect to it. Nothing to build:
+
+```bash
+uvx ozon-mcp-server
+```
+
+Or via pip:
+
+```bash
+pip install ozon-mcp-server
+ozon-mcp
+```
+
+Client configuration (for example `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "ozon": {
+      "command": "uvx",
+      "args": ["ozon-mcp-server"],
+      "env": {
+        "OZON_CLIENT_ID": "your Client-Id",
+        "OZON_API_KEY": "your API key",
+        "DATA_DIR": "~/.ozon-mcp"
+      }
+    }
+  }
+}
+```
+
+Point `DATA_DIR` at any writable directory — it holds stores, keys and statistics.
+The default is `/data`, which is the path used inside Docker.
+
+### Option 2: Docker with the web dashboard
+
+Use this if you want the dashboard, Ozon API diagnostics and browser-based store
+management. Five commands:
 
 ```bash
 git clone https://github.com/DeviceIngineering/ozon-mcp-server.git
