@@ -1,0 +1,43 @@
+name: Publish to MCP Registry
+
+# Регистрация сервера в официальном реестре modelcontextprotocol.io.
+#
+# Логин не нужен: используется github-oidc — реестр доверяет этому репозиторию,
+# namespace io.github.DeviceIngineering подтверждается самим фактом запуска
+# внутри него. Токены нигде не хранятся.
+#
+# Запускать ПОСЛЕ того, как версия из server.json появилась на PyPI:
+# реестр проверяет существование пакета.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish to PyPI"]
+    types: [completed]
+
+jobs:
+  publish:
+    name: Регистрация в реестре
+    runs-on: ubuntu-latest
+    # при автозапуске — только если публикация на PyPI прошла успешно
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить mcp-publisher
+        run: |
+          curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --version || true
+
+      - name: Проверить манифест
+        run: ./mcp-publisher validate
+
+      - name: Войти через OIDC
+        run: ./mcp-publisher login github-oidc
+
+      - name: Опубликовать
+        run: ./mcp-publisher publish
