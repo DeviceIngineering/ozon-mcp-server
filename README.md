@@ -348,7 +348,9 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
   Не удивляйтесь семизначным числам.
 - `403` на отзывах и вопросах — это не поломка, а отсутствие подписки
   Premium Plus. Диагностика такие ответы ошибкой не считает.
-- Ozon-ключи не содержат срока действия: истечение видно только по `401` в пробах.
+- Ключи Ozon стали срочными после ротации 13.02.2026 — 180 дней. Срок отдаётся
+  явно: `POST /v1/roles` возвращает `expires_at`, так что об истечении можно
+  предупреждать заранее, а не ловить его по `401` в пробах.
 - Асинхронная статистика рекламы — один отчёт одновременно, ≤10 кампаний, ≤62 дня;
   инструмент ждёт готовности отчёта до ~2 минут.
 - Статусы заявок на поставку в API v3 — целые числа 1–8, а не строки.
@@ -364,7 +366,7 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
 | `OZON_CLIENT_ID`, `OZON_API_KEY` | пусто | ключи Seller API для магазина `default`, если не хочется вводить их в UI |
 | `OZON_PERF_CLIENT_ID`, `OZON_PERF_CLIENT_SECRET` | пусто | то же для Performance API |
 
-## Известные ограничения Ozon API (актуально на июнь 2026)
+## Известные ограничения Ozon API (актуально на август 2026)
 
 - Реклама: создание кампаний через API — только «Трафареты» (CPC); бюджеты и
   ставки в микрорублях; официального метода узнать баланс рекламного кабинета нет.
@@ -373,14 +375,29 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
 - Отзывы, вопросы и часть аналитики требуют подписку Premium Plus (ошибка code 7).
 - Метрики воронки в `ozon_analytics` помечены Ozon как deprecated — для позиций
   в поиске используйте `ozon_product_queries`.
-- `/v3/finance/transaction/*` отключаются 06.07.2026; замена уже встроена
-  (`ozon_finance_cash_flow`, `ozon_finance_accruals`).
+- **Отключения Ozon осенью 2026.** Даты из официального канала @OzonSellerAPI,
+  сверены на живых кабинетах ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6),
+  спасибо [@standlord-prog](https://github.com/standlord-prog)):
+
+  | путь | гаснет | что вместо |
+  |---|---|---|
+  | `/v3/posting/fbs/list` | 31.08.2026 | `/v4/posting/fbs/list` — **сделано в v2.1.0** |
+  | `/v2/posting/fbo/list` | 31.08.2026 | `/v3/posting/fbo/list` — **сделано в v2.1.0** |
+  | `/v3/posting/fbs/unfulfilled/list` | 31.08.2026 | замены нет: отбор из `/v4/posting/fbs/list` по статусам — **сделано в v2.1.0** |
+  | `/v2/posting/fbs/act/create` | 07.09.2026 | `/v1/carriage/create` + `/v1/carriage/approve` — в работе |
+  | `/v3/finance/transaction/list` | 08.09.2026 | `/v1/finance/accrual/by-day` — в работе |
+  | `/v3/finance/transaction/totals` | 08.09.2026 | то же — в работе |
+
+  `/v4/posting/fbs/list` — не переименование v3: `postings` лежат на верхнем уровне,
+  а не под `result`, и пагинация курсорная (`has_next` + `cursor`) вместо `offset`.
+- `ozon_finance_cash_flow` и `ozon_finance_accruals` уже работают на новых путях
+  (`/v1/finance/cash-flow-statement/list`, `/v1/finance/accrual/by-day`).
 - `ozon_product_stocks_by_warehouse` использует v2, потому что v1 отключается 07.04.2026.
 - Цифровые акты приёма-передачи FBS удалены Ozon 22.03.2026 — используется обычный акт.
 - Метода «обновить ответ на отзыв» в Ozon API нет: ответ удаляется и создаётся заново.
 
 Список собран не переписыванием справки: это журнал деградаций и пять месяцев
-ежедневных вызовов, сверенные с документацией docs.ozon.ru по состоянию на июнь 2026.
+ежедневных вызовов, сверенные с документацией docs.ozon.ru по состоянию на август 2026.
 
 ## Что изменилось в версии 2.0
 
@@ -450,6 +467,15 @@ Ozon меняет API постоянно: эндпоинты добавляют�
 
 Если исправление нужно срочно — напишите на **d0371153@gmail.com**.
 Issues и pull request'ы тоже приветствуются и разбираются.
+
+## Благодарности
+
+- [@standlord-prog](https://github.com/standlord-prog) — разбор отключаемых методов
+  Ozon с проверкой на живых кабинетах ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6)):
+  даты, замены и три подводных камня при переезде на `/v4`. Отдельно — предупреждение,
+  что у `/v1/carriage/create` нет обязательных полей и пустое тело `{}` создаёт
+  настоящую отгрузку, и поправка про `POST /v1/roles` с `expires_at`. На этой основе
+  сделана версия v2.1.0.
 
 ## Лицензия
 

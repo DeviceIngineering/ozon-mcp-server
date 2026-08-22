@@ -361,8 +361,9 @@ Non-obvious things:
   surprised by seven-digit numbers.
 - A `403` on reviews and questions is not a breakage — it means no Premium Plus
   subscription. Diagnostics does not count those as errors.
-- Ozon API keys carry no expiry date; you only learn one expired from a `401` in
-  the probes.
+- Ozon API keys became time-limited after the 2026-02-13 rotation — 180 days. The
+  expiry is exposed explicitly: `POST /v1/roles` returns `expires_at`, so you can
+  warn ahead of time instead of catching a `401` in the probes.
 - Asynchronous ad statistics: one report at a time, ≤10 campaigns, ≤62 days. The
   tool waits up to about 2 minutes for the report to be ready.
 - Supply-order statuses in API v3 are integers 1–8, not strings.
@@ -378,7 +379,7 @@ Non-obvious things:
 | `OZON_CLIENT_ID`, `OZON_API_KEY` | empty | Seller API keys for the `default` store, if you'd rather not use the UI |
 | `OZON_PERF_CLIENT_ID`, `OZON_PERF_CLIENT_SECRET` | empty | the same for the Performance API |
 
-## Known Ozon API limitations (as of June 2026)
+## Known Ozon API limitations (as of August 2026)
 
 - Advertising: the API can only create "Trafarety" CPC campaigns; budgets and bids
   are in micro-rubles; there is no official way to read the ad account balance.
@@ -388,8 +389,25 @@ Non-obvious things:
   (error code 7).
 - Funnel metrics in `ozon_analytics` are marked deprecated by Ozon — use
   `ozon_product_queries` for search positions.
-- `/v3/finance/transaction/*` is being switched off on 2026-07-06; the replacements
-  are already wired in (`ozon_finance_cash_flow`, `ozon_finance_accruals`).
+- **Endpoints Ozon is switching off in autumn 2026.** Dates from the official
+  @OzonSellerAPI channel, verified against live seller accounts
+  ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6),
+  thanks to [@standlord-prog](https://github.com/standlord-prog)):
+
+  | path | goes dark | replacement |
+  |---|---|---|
+  | `/v3/posting/fbs/list` | 2026-08-31 | `/v4/posting/fbs/list` — **done in v2.1.0** |
+  | `/v2/posting/fbo/list` | 2026-08-31 | `/v3/posting/fbo/list` — **done in v2.1.0** |
+  | `/v3/posting/fbs/unfulfilled/list` | 2026-08-31 | no replacement: filtered out of `/v4/posting/fbs/list` by status — **done in v2.1.0** |
+  | `/v2/posting/fbs/act/create` | 2026-09-07 | `/v1/carriage/create` + `/v1/carriage/approve` — in progress |
+  | `/v3/finance/transaction/list` | 2026-09-08 | `/v1/finance/accrual/by-day` — in progress |
+  | `/v3/finance/transaction/totals` | 2026-09-08 | same — in progress |
+
+  `/v4/posting/fbs/list` is not a rename of v3: `postings` sit at the top level
+  rather than under `result`, and pagination is cursor-based (`has_next` + `cursor`)
+  instead of `offset`.
+- `ozon_finance_cash_flow` and `ozon_finance_accruals` already run on the new paths
+  (`/v1/finance/cash-flow-statement/list`, `/v1/finance/accrual/by-day`).
 - `ozon_product_stocks_by_warehouse` uses v2 because v1 is switched off on 2026-04-07.
 - Digital FBS handover acts were removed by Ozon on 2026-03-22 — the regular act
   is used instead.
@@ -397,7 +415,7 @@ Non-obvious things:
   written again.
 
 This list is not a rewrite of the reference: it comes from the degradation log and
-five months of daily calls, cross-checked against docs.ozon.ru as of June 2026.
+five months of daily calls, cross-checked against docs.ozon.ru as of August 2026.
 
 ## What changed in version 2.0
 
@@ -469,6 +487,16 @@ there is no release schedule and no commitment on turnaround.
 
 If you need a fix urgently, write to **d0371153@gmail.com**.
 Issues and pull requests are welcome too, and they do get read.
+
+## Acknowledgements
+
+- [@standlord-prog](https://github.com/standlord-prog) — the breakdown of Ozon endpoints
+  being switched off, verified against live seller accounts
+  ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6)): dates,
+  replacements and three gotchas in the move to `/v4`. Separately — the warning that
+  `/v1/carriage/create` has no required fields and an empty `{}` body creates a real
+  shipment, and the correction about `POST /v1/roles` returning `expires_at`.
+  Version v2.1.0 is built on that work.
 
 ## License
 

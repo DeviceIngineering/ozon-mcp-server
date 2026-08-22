@@ -11,7 +11,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
-[![Transport](https://img.shields.io/badge/transport-SSE-lightgrey.svg)](#实现原理)
+[![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
+[![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#实现原理)
 
 在与 AI 助手的对话中直接打理你的 Ozon 店铺：价格、促销、广告、订单、退货、评价、
 财务——基于 Ozon Seller API 与 Performance API 的 151 个工具（Ozon 是俄罗斯最大的
@@ -71,7 +72,46 @@ rFBS 则是卖家自行配送的 FBS。
 
 ## 快速开始
 
-需要 Docker。五条命令：
+### 方式一：一条命令，无需 Docker
+
+服务器使用 stdio 通信，Claude Desktop、Cursor、VS Code 等 MCP 客户端都以这种方式接入。
+无需构建：
+
+```bash
+uvx ozon-mcp-server
+```
+
+或者用 pip：
+
+```bash
+pip install ozon-mcp-server
+ozon-mcp
+```
+
+客户端配置（以 `claude_desktop_config.json` 为例）：
+
+```json
+{
+  "mcpServers": {
+    "ozon": {
+      "command": "uvx",
+      "args": ["ozon-mcp-server"],
+      "env": {
+        "OZON_CLIENT_ID": "你的 Client-Id",
+        "OZON_API_KEY": "你的 API 密钥",
+        "DATA_DIR": "~/.ozon-mcp"
+      }
+    }
+  }
+}
+```
+
+`DATA_DIR` 请指向任意可写目录，用于存放店铺、密钥和统计数据。默认值 `/data` 是
+Docker 内部使用的路径。
+
+### 方式二：Docker，带网页仪表盘
+
+需要仪表盘、Ozon API 诊断和在浏览器里管理店铺时选这种方式。需要 Docker，五条命令：
 
 ```bash
 git clone https://github.com/DeviceIngineering/ozon-mcp-server.git
@@ -286,7 +326,8 @@ Fernet 加密，加密密钥放在 `DATA_DIR/.encryption_key`，界面上密钥�
 - Ozon 的广告出价和预算单位是**微卢布**：`1000000` = 1 ₽。看到七位数不用惊讶。
 - 评价和提问接口返回 `403` 不是故障，而是没有 Premium Plus 订阅。诊断不会把这类响应
   算作错误。
-- Ozon 的密钥本身不带有效期，只能从探针里的 `401` 判断密钥已失效。
+- 自 2026-02-13 轮换后，Ozon 密钥有了有效期（180 天），并且会显式返回：
+  `POST /v1/roles` 会给出 `expires_at`，因此可以提前预警，而不必等探针返回 `401`。
 - 广告的异步统计报表：同一时间只能有一个报表，最多 10 个广告计划、最长 62 天；工具最多
   等待约 2 分钟直到报表生成。
 - 备货申请单在 API v3 里的状态是 1–8 的整数，不是字符串。
@@ -310,8 +351,23 @@ Fernet 加密，加密密钥放在 `DATA_DIR/.encryption_key`，界面上密钥�
 - 评价、提问以及部分数据分析需要 Premium Plus 订阅（错误码 7）。
 - `ozon_analytics` 中的转化漏斗指标已被 Ozon 标记为废弃——查搜索排名请用
   `ozon_product_queries`。
-- `/v3/finance/transaction/*` 将于 2026-07-06 停用；替代方案已内置
-  （`ozon_finance_cash_flow`、`ozon_finance_accruals`）。
+- **2026 年秋季 Ozon 停用的接口。** 日期来自官方频道 @OzonSellerAPI，并已在真实卖家
+  账号上验证（见 [issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6)，
+  感谢 [@standlord-prog](https://github.com/standlord-prog)）：
+
+  | 接口 | 停用日期 | 替代方案 |
+  |---|---|---|
+  | `/v3/posting/fbs/list` | 2026-08-31 | `/v4/posting/fbs/list` — **v2.1.0 已完成** |
+  | `/v2/posting/fbo/list` | 2026-08-31 | `/v3/posting/fbo/list` — **v2.1.0 已完成** |
+  | `/v3/posting/fbs/unfulfilled/list` | 2026-08-31 | 无直接替代：改为从 `/v4/posting/fbs/list` 按状态筛选 — **v2.1.0 已完成** |
+  | `/v2/posting/fbs/act/create` | 2026-09-07 | `/v1/carriage/create` + `/v1/carriage/approve` — 进行中 |
+  | `/v3/finance/transaction/list` | 2026-09-08 | `/v1/finance/accrual/by-day` — 进行中 |
+  | `/v3/finance/transaction/totals` | 2026-09-08 | 同上 — 进行中 |
+
+  `/v4/posting/fbs/list` 不是 v3 的改名：`postings` 位于顶层而不是 `result` 之下，
+  分页改为游标方式（`has_next` + `cursor`），不再使用 `offset`。
+- `ozon_finance_cash_flow` 和 `ozon_finance_accruals` 已经使用新接口
+  （`/v1/finance/cash-flow-statement/list`、`/v1/finance/accrual/by-day`）。
 - `ozon_product_stocks_by_warehouse` 使用 v2，因为 v1 将于 2026-04-07 停用。
 - FBS 电子交接单已被 Ozon 于 2026-03-22 移除，改用普通交接单。
 - Ozon API 没有「修改评价回复」的方法：只能删除原回复后重新发布。
@@ -380,6 +436,14 @@ Ozon 一直在改 API：接口会新增、改名、下线（上面的限制一�
 
 如果你急需某项修复，请发邮件到 **d0371153@gmail.com**。
 也欢迎提 issue 和 pull request，它们都会被认真看。
+
+## 致谢
+
+- [@standlord-prog](https://github.com/standlord-prog) —— 整理了 Ozon 即将停用的接口，
+  并在真实卖家账号上做了验证（[issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6)）：
+  停用日期、替代方案，以及迁移到 `/v4` 时的三个坑。另外还提醒：`/v1/carriage/create`
+  没有任何必填字段，空请求体 `{}` 会创建真实的发货单；以及 `POST /v1/roles` 会返回
+  `expires_at` 这一更正。v2.1.0 正是基于这些工作完成的。
 
 ## 许可证
 
