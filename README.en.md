@@ -490,13 +490,20 @@ Issues and pull requests are welcome too, and they do get read.
 
 ## Acknowledgements
 
-- [@standlord-prog](https://github.com/standlord-prog) — the breakdown of Ozon endpoints
-  being switched off, verified against live seller accounts
-  ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6)): dates,
-  replacements and three gotchas in the move to `/v4`. Separately — the warning that
-  `/v1/carriage/create` has no required fields and an empty `{}` body creates a real
-  shipment, and the correction about `POST /v1/roles` returning `expires_at`.
-  Version v2.1.0 is built on that work.
+- [@standlord-prog](https://github.com/standlord-prog):
+  - [issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6) — the breakdown
+    of Ozon endpoints being switched off, verified against live seller accounts: dates,
+    replacements and three gotchas in the move to `/v4`. Separately — the warning that
+    `/v1/carriage/create` has no required fields and an empty `{}` body creates a real
+    shipment, and the correction about `POST /v1/roles` returning `expires_at`.
+    Version **v2.1.0** is built on that work.
+  - [PR #7](https://github.com/DeviceIngineering/ozon-mcp-server/pull/7) — found and fixed
+    blind diagnostics: in stdio mode call statistics were never initialised, so
+    `ozon_degradations` answered "no degradations" to every question — even when every
+    single call was failing. The tool is marked [P0] and is asked precisely when something
+    has broken, which makes a silent false negative worse than having no tool at all. The
+    PR does not just fix the wiring: it also separates "no data" from "no degradations"
+    and adds an integration test over stdio with a real MCP client. Shipped in **v2.1.2**.
 
 ## License
 

@@ -439,11 +439,18 @@ Ozon 一直在改 API：接口会新增、改名、下线（上面的限制一�
 
 ## 致谢
 
-- [@standlord-prog](https://github.com/standlord-prog) —— 整理了 Ozon 即将停用的接口，
-  并在真实卖家账号上做了验证（[issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6)）：
-  停用日期、替代方案，以及迁移到 `/v4` 时的三个坑。另外还提醒：`/v1/carriage/create`
-  没有任何必填字段，空请求体 `{}` 会创建真实的发货单；以及 `POST /v1/roles` 会返回
-  `expires_at` 这一更正。v2.1.0 正是基于这些工作完成的。
+- [@standlord-prog](https://github.com/standlord-prog)：
+  - [issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6) —— 整理了
+    Ozon 即将停用的接口，并在真实卖家账号上做了验证：停用日期、替代方案，以及迁移到
+    `/v4` 时的三个坑。另外还提醒：`/v1/carriage/create` 没有任何必填字段，空请求体 `{}`
+    会创建真实的发货单；以及 `POST /v1/roles` 会返回 `expires_at` 这一更正。
+    **v2.1.0** 正是基于这些工作完成的。
+  - [PR #7](https://github.com/DeviceIngineering/ozon-mcp-server/pull/7) —— 发现并修复了
+    「诊断失明」问题：在 stdio 模式下调用统计根本没有初始化，因此 `ozon_degradations`
+    对任何询问都回答「没有劣化」——哪怕每一次调用都在失败。该工具标记为 [P0]，
+    恰恰是在出问题时才会被调用，所以这种无声的假阴性比没有这个工具更糟。
+    这个 PR 不只修好了初始化，还把「没有数据」和「没有劣化」区分开，
+    并补充了用真实 MCP 客户端跑 stdio 的集成测试。已包含在 **v2.1.2** 中。
 
 ## 许可证
 
