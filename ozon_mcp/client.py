@@ -1,6 +1,7 @@
 """HTTP-клиенты для Ozon Seller API и Performance API."""
 
 import httpx
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 SELLER_BASE = "https://api-seller.ozon.ru"
@@ -508,25 +509,46 @@ class OzonSellerClient:
     async def posting_fbo_list(
         self, since: str, to: str, limit: int = 50, offset: int = 0
     ) -> dict:
-        """POST /v2/posting/fbo/list — заказы FBO."""
+        """POST /v3/posting/fbo/list — заказы FBO.
+
+        /v2 отключается 31.08.2026 (issue #6). Контракт запроса тот же.
+        """
         return await self._post(
-            "/v2/posting/fbo/list",
+            "/v3/posting/fbo/list",
             {"dir": "DESC", "filter": {"since": since, "to": to},
              "limit": limit, "offset": offset, "with": {"analytics_data": True}},
         )
 
     # ── Заказы FBS ─────────────────────────────────────────
-    async def posting_fbs_list(self, since: str, to: str, limit: int = 50, offset: int = 0, status: str = "") -> dict:
-        """POST /v3/posting/fbs/list — заказы FBS."""
+    async def posting_fbs_list(
+        self, since: str, to: str, limit: int = 50, status: str = "", cursor: str = ""
+    ) -> dict:
+        """POST /v4/posting/fbs/list — заказы FBS.
+
+        /v3 отключается 31.08.2026 (issue #6).
+
+        ВНИМАНИЕ: v4 — это НЕ переименование v3, у него другой ответ:
+          * `postings` лежат на ВЕРХНЕМ уровне, а не под `result`;
+          * пагинация КУРСОРНАЯ: в ответе `has_next` и `cursor`, параметра
+            `offset` больше нет — следующую страницу берут, передав `cursor`
+            из предыдущего ответа.
+        Если разбирать ответ как в v3 (`d["result"]["postings"]`), получится
+        пустой список и ложный вывод «заказов нет».
+
+        Набор данных при этом идентичен v3 — проверено автором issue #6 на
+        своём кабинете: обе версии вернули одни и те же 17 отправлений.
+        """
         body: dict[str, Any] = {
             "dir": "DESC",
             "filter": {"since": since, "to": to},
-            "limit": limit, "offset": offset,
+            "limit": limit,
             "with": {"analytics_data": True, "financial_data": True},
         }
         if status:
             body["filter"]["status"] = status
-        return await self._post("/v3/posting/fbs/list", body)
+        if cursor:
+            body["cursor"] = cursor
+        return await self._post("/v4/posting/fbs/list", body)
 
     async def posting_fbs_get(self, posting_number: str) -> dict:
         """POST /v3/posting/fbs/get — детали отправления FBS."""
@@ -536,12 +558,45 @@ class OzonSellerClient:
         """POST /v4/posting/fbs/ship — собрать заказ FBS (v3 удалён)."""
         return await self._post("/v4/posting/fbs/ship", {"posting_number": posting_number, "packages": packages})
 
-    async def posting_fbs_unfulfilled(self, limit: int = 100, cutoff_from: str = "", cutoff_to: str = "") -> dict:
-        """POST /v3/posting/fbs/unfulfilled/list — несобранные заказы FBS."""
-        body: dict[str, Any] = {"dir": "ASC", "limit": limit, "filter": {}}
+    # Статусы отправления FBS, означающие «ещё не собрано».
+    # awaiting_packaging — ждёт упаковки, awaiting_deliver — упаковано, ждёт отгрузки.
+    UNFULFILLED_STATUSES = ("awaiting_packaging", "awaiting_deliver")
+
+    async def posting_fbs_unfulfilled(
+        self, limit: int = 100, cutoff_from: str = "", cutoff_to: str = "", cursor: str = ""
+    ) -> dict:
+        """Несобранные заказы FBS — через POST /v4/posting/fbs/list.
+
+        Отдельного метода больше нет: /v3/posting/fbs/unfulfilled/list отключается
+        31.08.2026, и прямой замены Ozon не предложил (issue #6). Поэтому несобранные
+        отправления выбираются из общего списка фильтром по статусам
+        awaiting_packaging и awaiting_deliver.
+
+        Ответ — как у /v4/posting/fbs/list: `postings` на верхнем уровне,
+        курсорная пагинация (`has_next`, `cursor`).
+
+        Отличие от прежнего поведения: старый метод не требовал периода, а v4
+        требует `filter.since`/`filter.to`. Если период не задан, берём последние
+        30 дней — этого хватает, чтобы покрыть любой несобранный заказ.
+        """
+        body: dict[str, Any] = {
+            "dir": "ASC",
+            "limit": limit,
+            "with": {"analytics_data": True, "financial_data": True},
+        }
         if cutoff_from and cutoff_to:
-            body["filter"] = {"cutoff_from": cutoff_from, "cutoff_to": cutoff_to}
-        return await self._post("/v3/posting/fbs/unfulfilled/list", body)
+            flt: dict[str, Any] = {"cutoff_from": cutoff_from, "cutoff_to": cutoff_to}
+        else:
+            now = datetime.now(timezone.utc)
+            flt = {
+                "since": (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "to": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+        flt["status"] = list(self.UNFULFILLED_STATUSES)
+        body["filter"] = flt
+        if cursor:
+            body["cursor"] = cursor
+        return await self._post("/v4/posting/fbs/list", body)
 
     async def posting_fbs_package_label(self, posting_numbers: list[str]) -> dict:
         """POST /v2/posting/fbs/package-label — этикетки отправлений (синхронно, PDF base64)."""

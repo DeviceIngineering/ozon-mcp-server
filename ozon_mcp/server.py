@@ -22,7 +22,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.0.2")
+app = Server("ozon-mcp-server", version="2.1.0")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -526,8 +526,11 @@ TOOLS = [
 
     # === ЗАКАЗЫ FBS ===
     _tool("ozon_orders_fbs",
-          "Заказы FBS с финансовыми данными.",
-          {"since": {"type": "string"}, "to": {"type": "string"}, "limit": {"type": "integer", "default": 50}, "status": {"type": "string", "description": "awaiting_packaging, awaiting_deliver, delivering, etc."}},
+          "Заказы FBS с финансовыми данными. Пагинация курсорная: если в ответе has_next=true, "
+          "повторите вызов с cursor из ответа.",
+          {"since": {"type": "string"}, "to": {"type": "string"}, "limit": {"type": "integer", "default": 50},
+           "status": {"type": "string", "description": "awaiting_packaging, awaiting_deliver, delivering, etc."},
+           "cursor": {"type": "string", "description": "Курсор следующей страницы из предыдущего ответа."}},
           ["since", "to"]),
     _tool("ozon_order_fbs_get",
           "Детали отправления FBS.",
@@ -538,8 +541,11 @@ TOOLS = [
           {"posting_number": {"type": "string"}, "packages": {"type": "array", "items": {"type": "object"}}},
           ["posting_number", "packages"]),
     _tool("ozon_orders_fbs_unfulfilled",
-          "[P1] Несобранные заказы FBS (ожидают сборки).",
-          {"limit": {"type": "integer", "default": 100}}),
+          "[P1] Несобранные заказы FBS (ожидают сборки). Отбираются из /v4/posting/fbs/list "
+          "по статусам awaiting_packaging и awaiting_deliver за последние 30 дней. "
+          "Пагинация курсорная: при has_next=true повторите вызов с cursor.",
+          {"limit": {"type": "integer", "default": 100},
+           "cursor": {"type": "string", "description": "Курсор следующей страницы из предыдущего ответа."}}),
     _tool("ozon_order_fbs_label",
           "[P1] Этикетки отправлений FBS (PDF base64).",
           {"posting_numbers": {"type": "array", "items": {"type": "string"}}},
@@ -1125,13 +1131,17 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
             arguments["since"], arguments["to"],
             limit=arguments.get("limit", 50),
             status=arguments.get("status", ""),
+            cursor=arguments.get("cursor", ""),
         ))
     if name == "ozon_order_fbs_get":
         return _json(await s.posting_fbs_get(arguments["posting_number"]))
     if name == "ozon_order_fbs_ship":
         return _json(await s.posting_fbs_ship(arguments["posting_number"], arguments["packages"]))
     if name == "ozon_orders_fbs_unfulfilled":
-        return _json(await s.posting_fbs_unfulfilled(limit=arguments.get("limit", 100)))
+        return _json(await s.posting_fbs_unfulfilled(
+            limit=arguments.get("limit", 100),
+            cursor=arguments.get("cursor", ""),
+        ))
     if name == "ozon_order_fbs_label":
         return _json(await s.posting_fbs_package_label(arguments["posting_numbers"]))
     if name == "ozon_order_fbs_cancel":
