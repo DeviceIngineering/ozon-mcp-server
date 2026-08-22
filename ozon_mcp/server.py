@@ -824,9 +824,21 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
     # Деградации (без shop_id)
     if name == "ozon_degradations":
         from ozon_mcp import stats
+        if not stats.is_enabled():
+            return _json({"status": "no_data",
+                          "message": "Статистика вызовов не собирается — судить о деградациях не по чему",
+                          "hint": f"Каталог DATA_DIR ({DATA_DIR}) недоступен на запись. "
+                                  f"Задай DATA_DIR в переменных окружения MCP-клиента."})
         degraded = await stats.get_tool_degradations()
         if not degraded:
-            return _json({"status": "ok", "message": "Деградаций нет — все инструменты работают штатно"})
+            total = (await stats.get_summary())["total"]
+            if total == 0:
+                return _json({"status": "no_data",
+                              "message": "Статистика пуста — записанных вызовов ещё нет, "
+                                         "судить о деградациях не по чему"})
+            return _json({"status": "ok",
+                          "message": f"Деградаций нет — все инструменты работают штатно "
+                                     f"(учтено вызовов: {total})"})
         return _json({"status": "degraded", "tools": degraded,
                       "hint": "Эти инструменты стабильно падают после периода успешной работы. Запусти ozon_diagnostics — возможно, Ozon изменил API."})
 
@@ -1304,10 +1316,37 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
 
 # ─── Точка входа ──────────────────────────────────────────
 
+async def _init_stats() -> bool:
+    """Поднять сбор статистики для stdio-режима.
+
+    В web-режиме это делает lifespan в app.py. В stdio до сих пор не делал никто,
+    поэтому _stats_callback оставался None, вызовы никуда не писались, а
+    ozon_degradations всегда отвечал «деградаций нет».
+
+    Каталог DATA_DIR может быть недоступен на запись (по умолчанию это /data,
+    а stdio обычно запускают на машине пользователя) — тогда сервер продолжает
+    работать без статистики, а ozon_degradations честно отвечает no_data.
+    """
+    from ozon_mcp import stats
+
+    try:
+        await stats.init_db(DATA_DIR)
+    except Exception:
+        return False
+    set_stats_callback(stats.record_call)
+    return True
+
+
 def main():
     async def _run():
-        async with stdio_server() as (read_stream, write_stream):
-            await app.run(read_stream, write_stream, app.create_initialization_options())
+        stats_on = await _init_stats()
+        try:
+            async with stdio_server() as (read_stream, write_stream):
+                await app.run(read_stream, write_stream, app.create_initialization_options())
+        finally:
+            if stats_on:
+                from ozon_mcp import stats
+                await stats.close_db()
 
     asyncio.run(_run())
 

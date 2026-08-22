@@ -56,6 +56,15 @@ async def close_db():
         _db = None
 
 
+def is_enabled() -> bool:
+    """Собирается ли статистика: init_db прошёл и база доступна.
+
+    Нужно, чтобы отличать «деградаций нет» от «судить не по чему»:
+    без этого пустая база выглядит так же, как здоровый сервер.
+    """
+    return _db is not None
+
+
 async def record_call(
     tool_name: str, duration_ms: float, success: bool,
     error_text: str | None, shop_id: str = ""
