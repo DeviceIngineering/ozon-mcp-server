@@ -4,7 +4,12 @@
 Ценовые стратегии, Импорт товаров, Заказы FBS, Возвраты, Вопросы, Чаты, Отмены,
 Склады, Отчёты, Бренды, Категории, Уведомления, Скидки, Компания, Сертификаты.
 
-Поддержка нескольких магазинов через параметр shop_id.
+Поддержка нескольких магазинов через параметр shop_id: он передаётся явно,
+а при единственном магазине подставляется сервером и в схемы не попадает.
+
+v2.2.0 — оптимизация контекста: компактный JSON в ответах, сжатые описания
+         инструментов, shop_id скрывается при единственном магазине
+         (определения: 18 386 → 12 344 токенов).
 """
 
 import json
@@ -22,7 +27,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.1.2")
+app = Server("ozon-mcp-server", version="2.2.0")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -103,14 +108,19 @@ SHOP_ID_PROP = {"type": "string"}
 
 
 def _tool(name: str, description: str, properties: dict | None = None, required: list | None = None) -> Tool:
-    """Создать Tool с обязательным shop_id."""
+    """Создать Tool с необязательным shop_id.
+
+    shop_id не в required: при единственном магазине сервер подставляет его сам
+    (см. _call_tool_impl), а при нескольких — возвращает список доступных.
+    Пустой required в схему не пишется — это ~7 токенов на инструмент.
+    """
     props = {"shop_id": SHOP_ID_PROP}
     if properties:
         props.update(properties)
-    req = ["shop_id"]
+    schema: dict = {"type": "object", "properties": props}
     if required:
-        req.extend(required)
-    return Tool(name=name, description=description, inputSchema={"type": "object", "properties": props, "required": req})
+        schema["required"] = list(required)
+    return Tool(name=name, description=description, inputSchema=schema)
 
 
 # ─── Определение инструментов ─────────────────────────────
@@ -120,7 +130,7 @@ TOOLS = [
     Tool(
         name="ozon_list_shops",
         description="Registered Ozon shops (магазины): shop_id + name. Use shop_id in all other tools.",
-        inputSchema={"type": "object", "properties": {}, "required": []},
+        inputSchema={"type": "object", "properties": {}},
     ),
 
     # === P0: АКЦИИ ===
@@ -128,11 +138,11 @@ TOOLS = [
           "[P0] Ozon promotions available now and which goods may be pulled in (акции). Goods in promos can sell below cost."),
     _tool("ozon_actions_candidates",
           "[P0] Candidate goods Ozon PLANS to pull into a promotion; pre-emptive check against selling at a loss (кандидаты в акцию).",
-          {"action_id": {"type": "integer", "description": "ID акции из ozon_actions_list"}},
+          {"action_id": {"type": "integer", "description": "action id from ozon_actions_list"}},
           ["action_id"]),
     _tool("ozon_actions_products",
           "[P0] Goods already participating in a promotion, sold at the promo price (товары в акции).",
-          {"action_id": {"type": "integer", "description": "ID акции"}},
+          {"action_id": {"type": "integer", "description": "action id"}},
           ["action_id"]),
     _tool("ozon_actions_activate",
           "[P0] Add goods to a promotion at a given promo price (вступить в акцию).",
@@ -148,12 +158,12 @@ TOOLS = [
     # === СОБСТВЕННЫЕ АКЦИИ ПРОДАВЦА ===
     _tool("ozon_seller_actions",
           "Seller's own promotions, as opposed to Ozon's (собственные акции).",
-          {"status": {"type": "string", "description": "Фильтр по статусу (опц.)"},
+          {"status": {"type": "string", "description": "status filter"},
            "limit": {"type": "integer", "default": 50}}),
     _tool("ozon_seller_action_create",
           "Create the seller's own discount promotion (создать акцию).",
           {"title": {"type": "string"}, "date_start": {"type": "string", "description": "RFC3339"},
-           "date_end": {"type": "string"}, "min_action_percent": {"type": "integer", "description": "Мин. процент скидки"}},
+           "date_end": {"type": "string"}, "min_action_percent": {"type": "integer", "description": "min discount %"}},
           ["title", "date_start", "date_end", "min_action_percent"]),
     _tool("ozon_seller_action_toggle",
           "Enable/disable the seller's own promotion (включить акцию).",
@@ -202,8 +212,8 @@ TOOLS = [
     _tool("ozon_pricing_strategy_products",
           "Strategy goods: action=list | add | delete (товары стратегии).",
           {"action": {"type": "string", "description": "list | add | delete"},
-           "strategy_id": {"type": "string", "description": "Для list/add"},
-           "product_ids": {"type": "array", "items": {"type": "integer"}, "description": "Для add/delete"}},
+           "strategy_id": {"type": "string", "description": "for list/add"},
+           "product_ids": {"type": "array", "items": {"type": "integer"}, "description": "for add/delete"}},
           ["action"]),
     _tool("ozon_pricing_competitors",
           "Competitors from other marketplaces, input for pricing strategies (конкуренты).",
@@ -216,16 +226,16 @@ TOOLS = [
     # === P0: ЦЕНЫ ===
     _tool("ozon_set_prices",
           "[P0] Set prices. Use min_price to block promos below cost (установить цены).",
-          {"prices": {"type": "array", "description": "Массив: offer_id, price, old_price, min_price, auto_action_enabled", "items": {"type": "object"}}},
+          {"prices": {"type": "array", "description": "[{offer_id, price, old_price, min_price, auto_action_enabled}]", "items": {"type": "object"}}},
           ["prices"]),
     _tool("ozon_get_prices",
           "[P0] Current prices, discounts, min price and price index. price_index over 1.15 risks quarantine (цены, индекс цен).",
-          {"offer_id": {"type": "array", "items": {"type": "string"}, "description": "Фильтр по артикулам (опц.)"},
-           "product_id": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр по product_id (опц.)"},
+          {"offer_id": {"type": "array", "items": {"type": "string"}, "description": "offer_id filter"},
+           "product_id": {"type": "array", "items": {"type": "integer"}, "description": "product_id filter"},
            "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_get_prices_v4",
           "Prices via v4 API, includes purchase_price/cost (цены v4, себестоимость).",
-          {"offer_id": {"type": "array", "items": {"type": "string"}, "description": "Фильтр по артикулам"},
+          {"offer_id": {"type": "array", "items": {"type": "string"}, "description": "offer_id filter"},
            "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_min_price_timer_status",
           "[P0] Min price timer status, 30 days. Expired means goods are exposed to promos below cost (таймер минимальной цены).",
@@ -243,7 +253,7 @@ TOOLS = [
            "date_to": {"type": "string"},
            "page": {"type": "integer", "default": 1},
            "page_size": {"type": "integer", "default": 50},
-           "operation_type": {"type": "array", "items": {"type": "string"}, "description": "Фильтр по типу (опц.)"}},
+           "operation_type": {"type": "array", "items": {"type": "string"}, "description": "type filter"}},
           ["date_from", "date_to"]),
     _tool("ozon_finance_totals",
           "[P0] Period totals: commissions, logistics, storage (итоги финансов).",
@@ -263,8 +273,8 @@ TOOLS = [
           ["date"]),
     _tool("ozon_finance_balance",
           "[P0] Seller balance for a period: opening/closing, accruals, payouts (Beta). No dates = last 30 days (баланс).",
-          {"date_from": {"type": "string", "description": "YYYY-MM-DD (опц.)"},
-           "date_to": {"type": "string", "description": "YYYY-MM-DD (опц.)"}}),
+          {"date_from": {"type": "string", "description": "YYYY-MM-DD"},
+           "date_to": {"type": "string", "description": "YYYY-MM-DD"}}),
     _tool("ozon_finance_cash_flow",
           "Cash flow (движение средств).",
           {"date_from": {"type": "string"}, "date_to": {"type": "string"}},
@@ -281,7 +291,7 @@ TOOLS = [
     # === P0: ОТЗЫВЫ ===
     _tool("ozon_reviews",
           "[P0] Product reviews; negatives cut conversion (отзывы).",
-          {"sku": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр по SKU (опц.)"},
+          {"sku": {"type": "array", "items": {"type": "integer"}, "description": "SKU filter"},
            "limit": {"type": "integer", "default": 50}}),
     _tool("ozon_review_reply",
           "Reply to a review (ответить на отзыв).",
@@ -299,12 +309,12 @@ TOOLS = [
     # === P0: РЕКЛАМА ===
     _tool("ozon_ad_campaigns",
           "[P0] Ad campaigns: budgets in micro-rubles (1000000 = 1₽), statuses. adv_object_type: SKU | SEARCH_PROMO | BANNER. state: CAMPAIGN_STATE_RUNNING | _STOPPED | _INACTIVE (реклама, кампании).",
-          {"campaign_ids": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр (опц.)"},
-           "adv_object_type": {"type": "string", "description": "Фильтр по типу (опц.)"},
-           "state": {"type": "string", "description": "Фильтр по статусу (опц.)"}}),
+          {"campaign_ids": {"type": "array", "items": {"type": "integer"}, "description": "filter"},
+           "adv_object_type": {"type": "string", "description": "type filter"},
+           "state": {"type": "string", "description": "status filter"}}),
     _tool("ozon_ad_statistics",
           "[P0] Campaign statistics, async Ozon report, up to ~2 min. Limits: ≤10 campaigns, ≤62 days, one report at a time (статистика рекламы).",
-          {"campaigns": {"type": "array", "items": {"type": "integer"}, "description": "ID кампаний"},
+          {"campaigns": {"type": "array", "items": {"type": "integer"}, "description": "campaign ids"},
            "date_from": {"type": "string", "description": "YYYY-MM-DD"},
            "date_to": {"type": "string"},
            "group_by": {"type": "string", "default": "DATE"}},
@@ -322,8 +332,8 @@ TOOLS = [
           {"title": {"type": "string"},
            "placement": {"type": "string", "default": "PLACEMENT_SEARCH_AND_CATEGORY"},
            "strategy": {"type": "string", "default": "MAX_CLICKS"},
-           "daily_budget_rub": {"type": "number", "description": "Дневной бюджет в рублях"},
-           "weekly_budget_rub": {"type": "number", "description": "Недельный бюджет в рублях (опц.)"}},
+           "daily_budget_rub": {"type": "number", "description": "daily budget, RUB"},
+           "weekly_budget_rub": {"type": "number", "description": "weekly budget, RUB"}},
           ["title"]),
     _tool("ozon_ad_campaign_activate",
           "Start an ad campaign (запустить кампанию).",
@@ -342,8 +352,8 @@ TOOLS = [
           {"campaign_id": {"type": "integer"},
            "daily_budget_rub": {"type": "number"},
            "weekly_budget_rub": {"type": "number"},
-           "from_date": {"type": "string", "description": "YYYY-MM-DD (опц.)"},
-           "to_date": {"type": "string", "description": "YYYY-MM-DD (опц.)"}},
+           "from_date": {"type": "string", "description": "YYYY-MM-DD"},
+           "to_date": {"type": "string", "description": "YYYY-MM-DD"}},
           ["campaign_id"]),
     _tool("ozon_ad_campaign_products",
           "Goods and bids in a campaign (товары кампании).",
@@ -410,13 +420,13 @@ TOOLS = [
           {"limit": {"type": "integer", "default": 100}, "offset": {"type": "integer", "default": 0}}),
     _tool("ozon_analytics_stocks",
           "Stock analytics for specific goods: availability, scarcity, liquidity, 1-100 SKU (аналитика остатков).",
-          {"skus": {"type": "array", "items": {"type": "integer"}, "description": "SKU товаров (1-100)"}},
+          {"skus": {"type": "array", "items": {"type": "integer"}, "description": "SKUs, 1-100"}},
           ["skus"]),
     _tool("ozon_product_queries",
           "[P0] Search queries and positions of my goods in Ozon search (Premium). Visibility drives sales (поисковые запросы, позиции).",
           {"date_from": {"type": "string", "description": "YYYY-MM-DD"},
            "skus": {"type": "array", "items": {"type": "integer"}},
-           "details": {"type": "boolean", "default": False, "description": "true = детализация по запросам"}},
+           "details": {"type": "boolean", "default": False, "description": "true = per-query detail"}},
           ["date_from", "skus"]),
     _tool("ozon_search_queries_top",
           "Popular Ozon search queries, input for card SEO (топ запросов).",
@@ -425,7 +435,7 @@ TOOLS = [
     # === ПОСТАВКИ FBO ===
     _tool("ozon_supply_orders",
           "FBO supply orders (v3), returns order_ids; details via ozon_supply_order_get (заявки на поставку).",
-          {"states": {"type": "array", "items": {"type": "integer"}, "description": "Целочисленные коды статусов 1-8 (опц., по умолчанию все)"},
+          {"states": {"type": "array", "items": {"type": "integer"}, "description": "status codes 1-8, default all"},
            "limit": {"type": "integer", "default": 50}}),
     _tool("ozon_supply_order_get",
           "FBO supply order details, 1-50 (детали поставки).",
@@ -449,8 +459,8 @@ TOOLS = [
           ["product_id"]),
     _tool("ozon_product_attributes",
           "Product attributes including BRAND (атрибуты, бренд).",
-          {"offer_id": {"type": "array", "items": {"type": "string"}, "description": "Фильтр по артикулам (опц.)"},
-           "product_id": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр по ID (опц.)"},
+          {"offer_id": {"type": "array", "items": {"type": "string"}, "description": "offer_id filter"},
+           "product_id": {"type": "array", "items": {"type": "integer"}, "description": "id filter"},
            "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_product_stocks",
           "Product stock at FBO/FBS warehouses (остатки товаров).",
@@ -465,7 +475,7 @@ TOOLS = [
     # === ИМПОРТ И ОБНОВЛЕНИЕ ТОВАРОВ ===
     _tool("ozon_product_import",
           "Create/update goods, bulk import (импорт товаров).",
-          {"items": {"type": "array", "items": {"type": "object"}, "description": "Массив товаров для импорта"}},
+          {"items": {"type": "array", "items": {"type": "object"}, "description": "goods to import"}},
           ["items"]),
     _tool("ozon_product_import_info",
           "Product import task status (статус импорта).",
@@ -521,7 +531,7 @@ TOOLS = [
           ["items"]),
     _tool("ozon_product_stocks_by_warehouse",
           "FBS stock per warehouse (v2; v1 is switched off 2026-04-07) (остатки по складам).",
-          {"skus": {"type": "array", "items": {"type": "integer"}, "description": "Фильтр (опц.)"},
+          {"skus": {"type": "array", "items": {"type": "integer"}, "description": "filter"},
            "limit": {"type": "integer", "default": 100}}),
 
     # === ЗАКАЗЫ FBS ===
@@ -529,7 +539,7 @@ TOOLS = [
           "FBS orders with financial data. Cursor pagination: if has_next=true, repeat with cursor from the response (заказы FBS).",
           {"since": {"type": "string"}, "to": {"type": "string"}, "limit": {"type": "integer", "default": 50},
            "status": {"type": "string", "description": "awaiting_packaging, awaiting_deliver, delivering, etc."},
-           "cursor": {"type": "string", "description": "Курсор следующей страницы из предыдущего ответа."}},
+           "cursor": {"type": "string", "description": "next-page cursor from previous response"}},
           ["since", "to"]),
     _tool("ozon_order_fbs_get",
           "FBS posting details (детали отправления).",
@@ -542,7 +552,7 @@ TOOLS = [
     _tool("ozon_orders_fbs_unfulfilled",
           "Unfulfilled FBS orders awaiting packaging: statuses awaiting_packaging and awaiting_deliver, last 30 days. Cursor pagination when has_next=true (несобранные заказы).",
           {"limit": {"type": "integer", "default": 100},
-           "cursor": {"type": "string", "description": "Курсор следующей страницы из предыдущего ответа."}}),
+           "cursor": {"type": "string", "description": "next-page cursor from previous response"}}),
     _tool("ozon_order_fbs_label",
           "FBS posting labels, PDF base64 (этикетки).",
           {"posting_numbers": {"type": "array", "items": {"type": "string"}}},
@@ -600,7 +610,7 @@ TOOLS = [
     # === ВОЗВРАТЫ ===
     _tool("ozon_returns_fbo",
           "Unified FBO+FBS returns list (/v1/returns/list; old returns/company/* switched off) (возвраты).",
-          {"filter": {"type": "object", "description": "Фильтр (опц.)"},
+          {"filter": {"type": "object", "description": "filter"},
            "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_returns_fbs",
           "rFBS buyer return claims that need a seller decision (заявки на возврат).",
@@ -626,7 +636,7 @@ TOOLS = [
     # === P1: ВОЗВРАТЫ (LEGACY) ===
     _tool("ozon_returns_report",
           "Create a returns report (отчёт по возвратам).",
-          {"filter": {"type": "object", "description": "date_from, date_to и др."}},
+          {"filter": {"type": "object", "description": "date_from, date_to etc."}},
           ["filter"]),
 
     # === ВОПРОСЫ ===
@@ -670,7 +680,7 @@ TOOLS = [
     # === ОТМЕНЫ ===
     _tool("ozon_cancellation_list",
           "Buyer cancellation claims (v2). state: ALL | ON_APPROVAL | APPROVED | REJECTED (заявки на отмену).",
-          {"posting_number": {"type": "string", "description": "Фильтр (опц.)"},
+          {"posting_number": {"type": "string", "description": "filter"},
            "state": {"type": "string", "default": "ON_APPROVAL"},
            "limit": {"type": "integer", "default": 100}}),
     _tool("ozon_cancellation_approve",
@@ -777,7 +787,7 @@ TOOLS = [
     Tool(
         name="ozon_degradations",
         description="[P0] Tool degradations: which MCP tools used to work and now fail steadily, signalling an Ozon API change. No parameters (деградации).",
-        inputSchema={"type": "object", "properties": {}, "required": []},
+        inputSchema={"type": "object", "properties": {}},
     ),
 ]
 
@@ -791,9 +801,36 @@ TOOLS = [
 # — отдельная задача, вместе с миграцией с устаревшего SSE-транспорта на
 # Streamable HTTP.
 
+def _visible_tools() -> list[Tool]:
+    """Инструменты для list_tools.
+
+    При одном магазине shop_id убирается из схем: сервер подставит его сам
+    (см. _call_tool_impl), а 149 повторов параметра стоят ~2500 токенов
+    контекста в каждой сессии. Как только магазинов становится больше одного,
+    параметр возвращается в схемы.
+    """
+    try:
+        from ozon_mcp.settings import load_shops
+        if len(load_shops(DATA_DIR)) > 1:
+            return TOOLS
+    except Exception:
+        return TOOLS
+
+    visible: list[Tool] = []
+    for t in TOOLS:
+        props = t.inputSchema.get("properties") or {}
+        if "shop_id" not in props:
+            visible.append(t)
+            continue
+        schema = dict(t.inputSchema)
+        schema["properties"] = {k: v for k, v in props.items() if k != "shop_id"}
+        visible.append(Tool(name=t.name, description=t.description, inputSchema=schema))
+    return visible
+
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    return TOOLS
+    return _visible_tools()
 
 
 @app.call_tool()
