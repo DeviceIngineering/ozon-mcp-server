@@ -16,6 +16,10 @@ v2.2.1 — default в JSON-схемах limit приведён к фактиче
 v2.3.0 — формирование ответа (ozon_mcp/shaping.py): пресеты view=compact|full,
          сигнал усечения, предохранитель размера, поиск и глубина в дереве
          категорий. Корпус живых ответов: 476 158 → 63 845 токенов.
+
+v2.4.0 — профили инструментов (ozon_mcp/toolsets.py): OZON_TOOLSETS оставляет
+         нужные разделы каталога; core включён всегда. 151 инструмент = 12 686
+         токенов, pricing+ads = 5 425.
 """
 
 import contextvars
@@ -30,12 +34,12 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-from ozon_mcp import shaping
+from ozon_mcp import shaping, toolsets
 from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.3.0")
+app = Server("ozon-mcp-server", version="2.4.0")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -860,9 +864,28 @@ def _visible_tools() -> list[Tool]:
     return visible
 
 
+def _enabled_tools(tools: list[Tool]) -> list[Tool]:
+    """Отсечь профили, выключенные через OZON_TOOLSETS, и сказать об этом в описании.
+
+    Инструмент, которого модель не видит, превращается в ответ «такой возможности
+    нет». Поэтому список выключенного попадает в описание ozon_list_shops — модель
+    может назвать причину, а не выдумать ограничение.
+    """
+    note = toolsets.availability_note()
+    if not note:
+        return tools
+    result = []
+    for t in tools:
+        if not toolsets.is_enabled(t.name):
+            continue
+        description = t.description + note if t.name == "ozon_list_shops" else t.description
+        result.append(Tool(name=t.name, description=description, inputSchema=t.inputSchema))
+    return result
+
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    return _visible_tools()
+    return _enabled_tools(_visible_tools())
 
 
 @app.call_tool()
@@ -890,6 +913,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
+    # Профиль проверяется первым: иначе выключенный инструмент упрётся в ошибку
+    # про магазин или ключи, и причина отказа останется невидимой.
+    if not toolsets.is_enabled(name):
+        return [TextContent(type="text", text=toolsets.unavailable_message(name))]
+
     # Магазины (без shop_id)
     if name == "ozon_list_shops":
         from ozon_mcp.settings import get_shop_list
