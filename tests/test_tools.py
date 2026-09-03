@@ -35,3 +35,21 @@ def test_no_duplicate_tools():
 
     names = [t.name for t in TOOLS]
     assert len(names) == len(set(names))
+
+
+def test_limit_defaults_are_modest():
+    """Дефолтный limit не должен выдавать ответ крупнее потолка клиента.
+
+    В Claude Code потолок вывода одного вызова — MAX_MCP_OUTPUT_TOKENS,
+    по умолчанию 25 000 токенов; ответ на тысячи строк в него не помещается
+    и молча обрезается.
+    """
+    from ozon_mcp.server import TOOLS
+
+    too_big = [
+        (t.name, (t.inputSchema.get("properties") or {})["limit"]["default"])
+        for t in TOOLS
+        if isinstance((t.inputSchema.get("properties") or {}).get("limit"), dict)
+        and (t.inputSchema["properties"]["limit"].get("default") or 0) > 500
+    ]
+    assert not too_big, f"слишком крупный дефолтный limit: {too_big}"

@@ -10,6 +10,8 @@
 v2.2.0 — оптимизация контекста: компактный JSON в ответах, сжатые описания
          инструментов, shop_id скрывается при единственном магазине
          (определения: 18 386 → 12 344 токенов).
+
+v2.2.1 — default в JSON-схемах limit приведён к фактическому дефолту.
 """
 
 import json
@@ -27,7 +29,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.2.0")
+app = Server("ozon-mcp-server", version="2.2.1")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -413,7 +415,7 @@ TOOLS = [
           {"date_from": {"type": "string"}, "date_to": {"type": "string"},
            "metrics": {"type": "array", "items": {"type": "string"}, "description": "revenue, ordered_units, delivered_units, returns, cancellations"},
            "dimensions": {"type": "array", "items": {"type": "string"}, "description": "sku, day, week, month"},
-           "limit": {"type": "integer", "default": 1000}},
+           "limit": {"type": "integer", "default": 100}},
           ["date_from", "date_to", "metrics", "dimensions"]),
     _tool("ozon_stock_on_warehouses",
           "Stock and turnover at Ozon warehouses, via turnover/stocks — the old endpoint was removed (остатки на складах).",
