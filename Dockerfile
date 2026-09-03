@@ -2,7 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml .
+# LICENSE и README нужны на этапе сборки: pyproject ссылается на них
+# в license и readme, без них pip install падает на генерации метаданных.
+COPY pyproject.toml LICENSE README.en.md ./
 COPY ozon_mcp/ ozon_mcp/
 
 RUN pip install --no-cache-dir .

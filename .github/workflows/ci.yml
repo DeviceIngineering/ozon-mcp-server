@@ -1,0 +1,53 @@
+name: CI
+
+# Тесты и сборка образа на каждый push и pull request.
+#
+# Появился после того, как docker build молча ломался неделями: pyproject
+# ссылается на LICENSE и README, а Dockerfile их не копировал. Пакет на PyPI
+# при этом собирался нормально, поэтому поломку никто не видел до попытки
+# собрать контейнер по инструкции из README.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Тесты
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Установить пакет с dev-зависимостями
+        run: python -m pip install --upgrade pip && pip install -e ".[dev]"
+
+      - name: pytest
+        run: python -m pytest tests/ -q
+
+  docker:
+    name: Сборка образа
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker build
+        run: docker build -t ozon-mcp-server:ci .
+
+      - name: Сервер отвечает на initialize по stdio
+        run: |
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | timeout 60 docker run --rm -i ozon-mcp-server:ci ozon-mcp > out.json
+          grep -q '"name":"ozon-mcp-server"' out.json
+          python -c "import json,sys;t=[json.loads(l)['result']['tools'] for l in open('out.json') if '\"id\":2' in l][0];print('инструментов в каталоге:',len(t));sys.exit(0 if len(t)>100 else 1)"

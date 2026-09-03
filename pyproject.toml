@@ -1,6 +1,6 @@
 [project]
 name = "ozon-mcp-server"
-version = "2.4.0"
+version = "2.4.1"
 description = "MCP server for Ozon Seller API + Performance API: 151 tools for prices, promos, ads, orders, returns and finance"
 readme = "README.en.md"
 requires-python = ">=3.10"

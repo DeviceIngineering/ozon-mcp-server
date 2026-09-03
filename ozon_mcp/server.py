@@ -39,7 +39,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.4.0")
+app = Server("ozon-mcp-server", version="2.4.1")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
