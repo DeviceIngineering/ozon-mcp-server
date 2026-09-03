@@ -12,8 +12,13 @@ v2.2.0 — оптимизация контекста: компактный JSON 
          (определения: 18 386 → 12 344 токенов).
 
 v2.2.1 — default в JSON-схемах limit приведён к фактическому дефолту.
+
+v2.3.0 — формирование ответа (ozon_mcp/shaping.py): пресеты view=compact|full,
+         сигнал усечения, предохранитель размера, поиск и глубина в дереве
+         категорий. Корпус живых ответов: 476 158 → 63 845 токенов.
 """
 
+import contextvars
 import json
 import os
 import asyncio
@@ -25,11 +30,12 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
+from ozon_mcp import shaping
 from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.2.1")
+app = Server("ozon-mcp-server", version="2.3.0")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -91,8 +97,27 @@ def get_mcp_app() -> Server:
     return app
 
 
+# Имя и аргументы текущего вызова: диспетчер Ozon — длинная if-цепочка со 150
+# вызовами _json, прокидывать их параметром пришлось бы в каждую ветку.
+_CALL_CONTEXT: contextvars.ContextVar[tuple[str, dict] | None] = contextvars.ContextVar(
+    "ozon_call_context", default=None)
+
+
 def _json(data: Any) -> list[TextContent]:
-    return [TextContent(type="text", text=json.dumps(data, ensure_ascii=False, separators=(",", ":"), default=str))]
+    """Ответ инструмента: данные плюс заметки о пресете, усечении и размере.
+
+    Заметки идут отдельными блоками, а не полем внутри JSON: у части ручек Ozon
+    верхний уровень ответа — массив, и обёртка сломала бы привычные пути к данным.
+    """
+    notes: list[str] = []
+    context = _CALL_CONTEXT.get()
+    if context is not None:
+        name, arguments = context
+        data, notes = shaping.shape(name, arguments, data)
+    blocks = [TextContent(type="text", text=json.dumps(
+        data, ensure_ascii=False, separators=(",", ":"), default=str))]
+    blocks.extend(TextContent(type="text", text=note) for note in notes)
+    return blocks
 
 
 # Callback для записи статистики (устанавливается из app.py)
@@ -727,7 +752,12 @@ TOOLS = [
 
     # === КАТЕГОРИИ ===
     _tool("ozon_category_tree",
-          "Ozon category tree (дерево категорий)."),
+          "Ozon category tree (дерево категорий). Whole tree is 9 800 nodes: pass search "
+          "to find a category, or depth to go deeper than top level.",
+          {"search": {"type": "string",
+                      "description": "category name substring, case-insensitive (название категории)"},
+           "depth": {"type": "integer", "default": 1,
+                     "description": "1 = top level only, 3 = whole tree"}}),
     _tool("ozon_category_attributes",
           "Category attributes (атрибуты категории).",
           {"description_category_id": {"type": "integer"}, "type_id": {"type": "integer", "default": 0}},
@@ -841,6 +871,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     success = True
     error_text = None
     shop_id = arguments.get("shop_id", "")
+    token = _CALL_CONTEXT.set((name, arguments))
     try:
         result = await _call_tool_impl(name, arguments)
         return result
@@ -849,6 +880,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         error_text = f"{type(e).__name__}: {e}"
         return [TextContent(type="text", text=f"Ошибка: {error_text}")]
     finally:
+        _CALL_CONTEXT.reset(token)
         duration_ms = (time.monotonic() - start) * 1000
         if _stats_callback:
             try:
@@ -1302,7 +1334,10 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
 
     # === КАТЕГОРИИ ===
     if name == "ozon_category_tree":
-        return _json(await s.description_category_tree())
+        return _json(_trim_category_tree(
+            await s.description_category_tree(),
+            (arguments.get("search") or "").strip().lower(),
+            int(arguments.get("depth") or 1)))
     if name == "ozon_category_attributes":
         return _json(await s.description_category_attribute(arguments["description_category_id"], arguments.get("type_id", 0)))
     if name == "ozon_category_attribute_values":
@@ -1358,6 +1393,53 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await s.product_archive(arguments["product_id"]))
 
     return [TextContent(type="text", text=f"Неизвестный инструмент: {name}")]
+
+
+def _trim_category_tree(data: Any, search: str, depth: int) -> Any:
+    """Ozon отдаёт дерево целиком — 9 800 узлов, 266 000 токенов.
+
+    Поиск и глубина применяются на сервере: у API таких параметров нет, а без них
+    инструмент в 10 раз превышает потолок вывода клиента.
+    """
+    roots = data.get("result") if isinstance(data, dict) else None
+    if not isinstance(roots, list):
+        return data
+
+    def cut(nodes: list, level: int) -> list:
+        out = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            children = node.get("children") or []
+            trimmed = dict(node)
+            trimmed["children"] = cut(children, level - 1) if level > 1 else []
+            if level <= 1 and children:
+                trimmed["hasChildren"] = True
+            out.append(trimmed)
+        return out
+
+    def matching(nodes: list) -> list:
+        out = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            children = matching(node.get("children") or [])
+            hit = search in str(node.get("category_name", "")).lower()
+            if hit or children:
+                out.append({**node, "children": children})
+        return out
+
+    if search:
+        found = matching(roots)
+        return {**data, "result": found, "filteredBy": search}
+    return {**data, "result": cut(roots, max(1, depth)),
+            "hint": 'верхний уровень; глубже — depth=2..3 или search="название"'}
+
+
+# Инструментам с compact-пресетом добавляется переключатель view.
+for _tool_with_view in TOOLS:
+    if _tool_with_view.name in shaping.VIEWS:
+        _tool_with_view.inputSchema.setdefault("properties", {})["view"] = dict(shaping.VIEW_PROP)
 
 
 # ─── Точка входа ──────────────────────────────────────────

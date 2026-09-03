@@ -6,12 +6,12 @@
     "url": "https://github.com/DeviceIngineering/ozon-mcp-server",
     "source": "github"
   },
-  "version": "2.2.1",
+  "version": "2.3.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "ozon-mcp-server",
-      "version": "2.2.1",
+      "version": "2.3.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
