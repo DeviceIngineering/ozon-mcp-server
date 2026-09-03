@@ -1,7 +1,7 @@
 <div align="center">
 
-[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](README.md)
-[![English](https://img.shields.io/badge/English-8B949E?style=for-the-badge)](README.en.md)
+[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](README.ru.md)
+[![English](https://img.shields.io/badge/English-8B949E?style=for-the-badge)](README.md)
 ![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-0A66C2?style=for-the-badge)
 
 </div>
@@ -294,6 +294,73 @@ Fernet 加密，加密密钥放在 `DATA_DIR/.encryption_key`，界面上密钥�
 | `GET /api/diagnostics/{shop_id}` | 对某个店铺执行一次完整的实时诊断 |
 
 有了这些就可以把服务器接进 Zabbix、Uptime Kuma，或者干脆用 cron 里的 `curl`。
+
+## 上下文预算
+
+消耗 token 的有两处：每次会话加载一次的工具定义，以及每次调用都要付费的工具返回值。
+两者都在真实卖家账号上实测过，而不是估算——`scripts/collect_corpus.py` 采集只读工具的
+返回样本（个人信息在写入磁盘前即被脱敏，样本目录不进仓库），`scripts/measure_corpus.py`
+计算它们的开销。
+
+**工具定义。** 单店铺配置下，151 个工具占 **12 300 tokens**，此前为 18 386：描述压缩成
+一句话，只有一个店铺时 `shop_id` 不写进 schema（服务器自动补全），空字段不再序列化。
+
+**返回值。** 真正的问题出在少数几个超大响应上：
+
+| 工具 | 优化前 | 优化后 |
+|---|---:|---:|
+| `ozon_category_tree` — 9 797 个节点的完整类目树 | 266 324 | 979 |
+| `ozon_get_prices` — 93 % 的体积是促销历史 | 52 879 | 8 679 |
+| `ozon_warehouse_list` — 99 % 的体积是一整年的仓库排班 | 20 132 | 370 |
+| **16 条真实响应的样本集** | **476 158** | **63 845** |
+
+服务器为此做了四件事：
+
+- **`view: compact | full`。** 重的工具默认只返回调用它时真正需要的字段，`view="full"`
+  返回原始响应；被隐藏了哪些字段会写在回复里，模型知道还能要什么。
+- **截断提示。** 当返回条数正好等于 `limit`，回复会附带一句「数据很可能不完整」。否则
+  模型会拿一个切片当成全部商品来下结论。
+- **体积保护。** 超过客户端输出上限（Claude Code 默认 `MAX_MCP_OUTPUT_TOKENS` = 25 000）
+  的响应在服务端裁剪，并说明保留了多少条、总共多少条，而不是到达客户端后被静默截断。
+- **API 没有的过滤参数，服务端补上。** Ozon 只能整份返回 9 797 个节点的类目树，这里用 `search` 和 `depth` 参数筛选，默认只返回顶层。
+
+提示以独立的 content 块返回，而不是塞进 JSON 里：Ozon 有若干接口顶层就是数组，包一层会
+破坏所有取数路径。
+
+**工具档案。** 没有 tool search 的客户端每次请求都要为整个工具目录付费。`OZON_TOOLSETS`
+只保留你用得到的档案，划分依据是实际工作场景而不是 Ozon 文档章节——促销审计同时需要促销、
+价格和价格隔离区：
+
+| `OZON_TOOLSETS` | 工具数 | tokens |
+|---|---:|---:|
+| 留空（默认） | 151 | 12 686 |
+| `pricing,ads` | 57 | 5 425 |
+| `orders` | 33 | 2 611 |
+
+`core` 档案（店铺列表、自诊断、能力退化、公司信息）始终开启：出问题的时候恰恰最需要
+诊断。被关闭的档案会写进 `ozon_list_shops` 的描述，调用被关闭的工具会回答它属于哪个档案，
+这样助手说得出原因，而不是回一句「做不到」。
+
+Claude Code 不需要这些：它默认开启 tool search，按需加载 schema。Cursor、Cline、Continue
+和 Claude Desktop 会整份拉取 `tools/list`——工具档案是给它们准备的。
+
+## 设计取舍
+
+- **151 个细分工具，而不是几个万能接口。** 合并成 `action` 式的通用接口能省定义 token，
+  但会改变故障的性质：从「没有这个工具」变成「参数用错但真的执行了」，而这些工具里有改价
+  和投放广告。
+- **用字典分发，不用 if 链。** 工具名到 handler 的映射由三个字典维护，并有测试保证每个
+  工具都有 handler、没有孤立 handler。150 分支的 if 链会悄无声息地腐坏。
+- **服务器自我诊断。** `ozon_diagnostics` ping 所有 Ozon 主机并按 API 分类各发一个轻量真实
+  请求，`ozon_degradations` 报告哪些工具以前能用、现在稳定失败。电商平台改接口从不打招呼，
+  「是我的 token 过期了还是 WB 换了地址」必须一次调用就能回答。
+- **重工具默认 `compact`。** 样本集显示被隐藏的是图片链接、促销历史和仓库排班表，而不是
+  做决策要用的数据；而且回复里写明了隐藏了什么。
+- **单店铺时 `shop_id` 从 schema 中消失**，出现第二个店铺时立刻回来。
+- **`mcp<2` 是有意锁定的**：2.0 的 low-level API 去掉了本服务器依赖的装饰器写法，迁移
+  是另一件事，锁定的原因写在锁定的地方。
+- **凭证静态加密**（Fernet，密钥在数据卷里）、界面上打码；样本采集器在写文件前就脱敏，
+  因为订单和聊天数据里有买家姓名、电话和地址。
 
 ## 实现原理
 

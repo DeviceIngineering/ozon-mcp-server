@@ -1,7 +1,7 @@
 <div align="center">
 
-![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-0A66C2?style=for-the-badge)
-[![English](https://img.shields.io/badge/English-8B949E?style=for-the-badge)](README.en.md)
+[![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-8B949E?style=for-the-badge)](README.ru.md)
+![English](https://img.shields.io/badge/English-0A66C2?style=for-the-badge)
 [![中文](https://img.shields.io/badge/%E4%B8%AD%E6%96%87-8B949E?style=for-the-badge)](README.zh.md)
 
 </div>
@@ -11,80 +11,88 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
-[![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#как-это-устроено)
 [![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
+[![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#how-it-works)
 
-Управляйте магазинами Ozon прямо из чата с ИИ-ассистентом: цены, акции, реклама,
-заказы, возвраты, отзывы, финансы — 151 инструмент поверх Ozon Seller API и
-Performance API.
-Для продавцов, у которых **несколько магазинов**: каждый вызов принимает `shop_id`,
-ключи хранятся зашифрованными на вашем сервере, наружу ничего не уходит.
-Отличие от прочих Ozon-MCP: покрыт не только Seller API, но и реклама, а
-встроенная диагностика показывает, какие методы Ozon сломались, до того как это
-заметит ассистент.
+Run your Ozon stores straight from a chat with an AI assistant: prices, promos,
+advertising, orders, returns, reviews, finances — 151 tools on top of the Ozon
+Seller API and Performance API (Ozon is Russia's largest marketplace; the Seller
+API covers catalogue and operations, the Performance API covers paid ads).
+Built for sellers who run **more than one store**: every call takes a `shop_id`,
+and API keys stay encrypted on your own server — nothing leaves it.
+What sets it apart from other Ozon MCP servers: it covers advertising as well as
+the Seller API, and its built-in diagnostics tell you which Ozon endpoints broke
+before your assistant runs into them.
 
-Торгуете ещё и на Wildberries? Есть такой же сервер для WB —
+Selling on Wildberries too? There is the same server for WB —
 [wb-mcp-server](https://github.com/DeviceIngineering/wb-mcp-server).
 
-Это личный рабочий инструмент автора: больше пяти месяцев ежедневной работы,
-порядка двадцати кабинетов, 151 инструмент. Обновляется он по мере собственной
-необходимости автора — подробности в разделе
-[«Обновления и поддержка»](#обновления-и-поддержка).
+This is the author's own working tool: more than five months of daily use, around
+twenty seller accounts, 151 tools. It gets updated when he needs it updated — see
+[Updates and support](#updates-and-support) for what that means for you.
+
+> The per-client installation guides in `docs/` are currently **Russian only**.
+> The configuration in them is ready-to-paste JSON, which reads the same in any
+> language: file paths, the URL `http://localhost:8000/sse`, and the header
+> `Authorization: Bearer <MCP_AUTH_TOKEN>`.
 
 ```
-Ты: Какие мои товары Ozon планирует затянуть в акцию?
-Ты: Покажи расход по рекламным кампаниям за неделю и останови те, что тратят впустую.
-Ты: У каких товаров индекс цены хуже, чем у конкурентов?
-Ты: Ответь благодарностью на все новые отзывы с оценкой 5.
+You: Which of my products is Ozon planning to pull into a promo?
+You: Show ad campaign spend for the week and stop the ones burning money.
+You: Which products have a worse price index than their competitors?
+You: Reply with a thank-you to every new 5-star review.
 ```
 
-![Дашборд Ozon MCP Server](docs/img/dashboard.png)
+![Ozon MCP Server dashboard](https://raw.githubusercontent.com/DeviceIngineering/ozon-mcp-server/main/docs/img/dashboard.png)
 
-## Что умеет
+## What it does
 
-| Группа | Инструментов | Что внутри |
-|--------|--------------|-----------|
-| Акции и скидки | 14 | акции Ozon (список, кандидаты, вход/выход), собственные акции продавца, заявки «Хочу скидку» |
-| Цены и ценовые стратегии | 14 | установка цен и минимальной цены, индекс цен, таймер минимальной цены, автостратегии по конкурентам |
-| Реклама (Performance API) | 22 | кампании «Трафареты» (CPC), ставки и бюджеты, «Оплата за заказ» (CPO), статистика по товарам и дням |
-| Товары | 21 | список и карточки, атрибуты, остатки, импорт и массовое обновление, медиа, архив, сертификаты |
-| Заказы FBS и FBO | 17 | несобранные заказы, сборка (v4), этикетки, отмены, акты приёма-передачи, страна товара |
-| Возвраты и отмены | 10 | единый список возвратов FBO+FBS, заявки rFBS с решением продавца, заявки на отмену |
-| Отзывы, вопросы, чаты | 13 | отзывы и ответы, вопросы покупателей, переписка в чатах (v3) |
-| Склады и отчёты | 8 | склады FBS, методы доставки, генерация и выгрузка отчётов |
-| Финансы | 7 | баланс, транзакции, начисления, реализация, взаиморасчёты, движение денег |
-| Категории, бренды, сертификаты | 7 | дерево категорий, атрибуты и их значения, сертификаты |
-| Аналитика | 5 | аналитика по SKU, остатки и оборачиваемость, позиции товаров в поиске, топ поисковых запросов |
-| Поставки FBO | 4 | заявки на поставку (v3), счётчики, таймслоты |
-| Рейтинг | 2 | текущий рейтинг продавца и его история |
-| Диагностика | 2 | самопроверка доступности Ozon API, детектор деградаций |
-| Уведомления | 2 | подписки на push-вебхуки и справочник типов событий |
-| Компания | 2 | данные продавца и тарифы |
-| Магазины | 1 | список подключённых магазинов и их `shop_id` |
+| Group | Tools | What's inside |
+|-------|-------|---------------|
+| Promotions and discounts | 14 | Ozon promotions (list, candidates, join/leave), seller's own promotions, "I want a discount" buyer requests |
+| Prices and pricing strategies | 14 | setting prices and the minimum price, price index, minimum-price timer, automatic strategies that track competitors |
+| Advertising (Performance API) | 22 | "Trafarety" CPC campaigns (Ozon's sponsored-placement format), bids and budgets, "Pay per order" (CPO), per-product and daily statistics |
+| Products | 21 | listings and cards, attributes, stock, import and bulk updates, media, archive, certificates |
+| FBS and FBO orders | 17 | unfulfilled orders, packing (v4), labels, cancellations, handover acts, country of origin |
+| Returns and cancellations | 10 | unified FBO+FBS returns list, rFBS claims that need a seller decision, cancellation requests |
+| Reviews, questions, chats | 13 | reviews and replies, buyer questions, chat conversations (v3) |
+| Warehouses and reports | 8 | FBS warehouses, delivery methods, generating and downloading reports |
+| Finances | 7 | balance, transactions, accruals, realization report, mutual settlements, cash flow |
+| Categories, brands, certificates | 7 | category tree, attributes and their allowed values, certificates |
+| Analytics | 5 | SKU analytics, stock and turnover, product positions in Ozon search, top search queries |
+| FBO supplies | 4 | supply orders (v3), counters, timeslots |
+| Rating | 2 | current seller rating and its history |
+| Diagnostics | 2 | self-check of Ozon API availability, degradation detector |
+| Notifications | 2 | push webhook subscriptions and the event-type reference |
+| Company | 2 | seller details and tariffs |
+| Stores | 1 | list of connected stores and their `shop_id` |
 
-Полный нумерованный список с описанием каждого инструмента и его параметров —
-в **[docs/tools.md](docs/tools.md)**. Он сгенерирован из `ozon_mcp/server.py`
-(константа `TOOLS`) — то же самое отдаёт `tools/list` любому MCP-клиенту.
+FBO and FBS are Ozon's fulfilment models: FBO ships from Ozon's warehouses,
+FBS from yours, rFBS is FBS with your own delivery.
 
-## Быстрый старт
+The full numbered list, with a description and the parameters of every tool, is in
+**[docs/tools.md](docs/tools.md)**. It is generated from `ozon_mcp/server.py` (the
+`TOOLS` constant) — the same thing `tools/list` returns to any MCP client.
 
-### Вариант 1: одна команда, без Docker
+## Quick start
 
-Сервер работает по stdio — так его подключают Claude Desktop, Cursor, VS Code и
-другие MCP-клиенты. Ничего собирать не нужно:
+### Option 1: one command, no Docker
+
+The server speaks stdio, which is how Claude Desktop, Cursor, VS Code and other
+MCP clients connect to it. Nothing to build:
 
 ```bash
 uvx ozon-mcp-server
 ```
 
-Или через pip:
+Or via pip:
 
 ```bash
 pip install ozon-mcp-server
 ozon-mcp
 ```
 
-Конфигурация клиента (например, `claude_desktop_config.json`):
+Client configuration (for example `claude_desktop_config.json`):
 
 ```json
 {
@@ -93,8 +101,8 @@ ozon-mcp
       "command": "uvx",
       "args": ["ozon-mcp-server"],
       "env": {
-        "OZON_CLIENT_ID": "ваш Client-Id",
-        "OZON_API_KEY": "ваш API-ключ",
+        "OZON_CLIENT_ID": "your Client-Id",
+        "OZON_API_KEY": "your API key",
         "DATA_DIR": "~/.ozon-mcp"
       }
     }
@@ -102,50 +110,52 @@ ozon-mcp
 }
 ```
 
-`DATA_DIR` укажите на любой доступный для записи каталог — там хранятся магазины,
-ключи и статистика. По умолчанию используется `/data` (путь для Docker).
+Point `DATA_DIR` at any writable directory — it holds stores, keys and statistics.
+The default is `/data`, which is the path used inside Docker.
 
-### Вариант 2: Docker с веб-интерфейсом
+### Option 2: Docker with the web dashboard
 
-Нужен, если хотите дашборд, диагностику Ozon API и удобное добавление магазинов
-через браузер. Пять команд:
+Use this if you want the dashboard, Ozon API diagnostics and browser-based store
+management. Five commands:
 
 ```bash
 git clone https://github.com/DeviceIngineering/ozon-mcp-server.git
 cd ozon-mcp-server
-cp .env.example .env               # для локальной сети можно оставить как есть
-docker compose up -d --build       # соберёт образ и поднимет сервер на порту 8000
-open http://localhost:8000/shops   # добавить магазин и ключи Ozon
+cp .env.example .env               # fine as-is for a trusted local network
+docker compose up -d --build       # builds the image, serves on port 8000
+open http://localhost:8000/shops   # add a store and its Ozon API keys
 ```
 
-Что делает каждый шаг:
+What each step does:
 
-- `.env` — все переменные необязательные. Ключи магазинов удобнее вводить в
-  веб-интерфейсе, а не здесь. Единственное, что стоит задать сразу, если сервер
-  виден не только вам, — `MCP_AUTH_TOKEN` (сгенерировать: `openssl rand -hex 32`).
-- `docker compose up -d --build` — собирает образ из `Dockerfile`, пробрасывает
-  порт `8000:8000` и создаёт том `ozon_data` для магазинов, ключей, статистики и
-  истории диагностики. `restart: unless-stopped` поднимет контейнер после
-  перезагрузки машины.
-- `/shops` — форма добавления магазина: `shop_id` (латиницей, им вы будете
-  оперировать в чате), название, Client-Id + Api-Key от Seller API и
-  Client-Id + Client-Secret от Performance API. Кнопка «Проверить» делает живой
-  запрос к Ozon и говорит, приняты ли ключи.
+- `.env` — every variable is optional. Store keys are easier to enter in the web
+  UI than here. The one thing worth setting up front, if the server is reachable
+  by anyone but you, is `MCP_AUTH_TOKEN` (generate one with `openssl rand -hex 32`).
+- `docker compose up -d --build` — builds the image from the `Dockerfile`, maps
+  port `8000:8000` and creates the `ozon_data` volume for stores, keys, call
+  statistics and diagnostics history. `restart: unless-stopped` brings the
+  container back up after a reboot.
+- `/shops` — the add-store form: `shop_id` (the handle you'll use in chat), a
+  display name, Client-Id + Api-Key for the Seller API, and Client-Id +
+  Client-Secret for the Performance API. The "Проверить" (Test) button makes a
+  live request to Ozon and tells you whether the keys were accepted.
 
-После запуска:
+Once it's running:
 
-| Адрес | Что это |
-|-------|---------|
-| `http://localhost:8000/` | дашборд: счётчики вызовов, ошибки, деградации |
-| `http://localhost:8000/shops` | магазины и ключи |
-| `http://localhost:8000/diagnostics` | диагностика Ozon API |
-| `http://localhost:8000/api/health` | health-эндпоинт, JSON |
-| `http://localhost:8000/sse` | **эндпоинт MCP**, его и указывают клиентам |
+| Address | What it is |
+|---------|------------|
+| `http://localhost:8000/` | dashboard: call counters, errors, degradations |
+| `http://localhost:8000/shops` | stores and keys |
+| `http://localhost:8000/diagnostics` | Ozon API diagnostics |
+| `http://localhost:8000/api/health` | health endpoint, JSON |
+| `http://localhost:8000/sse` | **the MCP endpoint** — this is what clients point at |
 
-Остановить: `docker compose down` (данные останутся в томе `ozon_data`).
-Логи: `docker compose logs -f`.
+Note that the web UI is in Russian.
 
-### Без Docker
+To stop: `docker compose down` (the data stays in the `ozon_data` volume).
+Logs: `docker compose logs -f`.
+
+### Without Docker
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -153,418 +163,441 @@ pip install .
 DATA_DIR=./data PORT=8000 ozon-mcp-web
 ```
 
-`DATA_DIR` по умолчанию `/data` — при локальном запуске обязательно переопределите
-его на доступный каталог.
+`DATA_DIR` defaults to `/data`, so when running locally be sure to point it at a
+directory you can write to.
 
-## Установка в клиенты
+## Installing into clients
 
-Транспорт — SSE, адрес `http://<host>:8000/sse`. Поддержка SSE у клиентов разная:
-часть понимает его напрямую, части нужен мост `mcp-remote`. По файлу-инструкции
-на каждый клиент, с путями к конфигам под macOS, Linux, Windows и готовым JSON:
+The transport is SSE at `http://<host>:8000/sse`. SSE support differs between
+clients: some speak it directly, others need the `mcp-remote` bridge. There is one
+guide per client, with config paths for macOS, Linux and Windows and ready-made
+JSON — **in Russian**, but the JSON blocks are language-neutral:
 
-| Клиент | SSE напрямую | Инструкция |
-|--------|--------------|------------|
-| Claude Code | да | [docs/install-claude-code.md](docs/install-claude-code.md) |
-| Claude Desktop | нет, мост `mcp-remote` | [docs/install-claude-desktop.md](docs/install-claude-desktop.md) |
-| Cursor | да | [docs/install-cursor.md](docs/install-cursor.md) |
-| Windsurf / Devin Desktop | да | [docs/install-windsurf.md](docs/install-windsurf.md) |
-| VS Code (GitHub Copilot) | да | [docs/install-vscode-copilot.md](docs/install-vscode-copilot.md) |
-| Cline | да | [docs/install-cline.md](docs/install-cline.md) |
-| Continue.dev | да | [docs/install-continue.md](docs/install-continue.md) |
-| Zed | не подтверждено, рекомендуем мост | [docs/install-zed.md](docs/install-zed.md) |
-| JetBrains AI Assistant / Junie | да | [docs/install-jetbrains.md](docs/install-jetbrains.md) |
-| Gemini CLI | да | [docs/install-gemini-cli.md](docs/install-gemini-cli.md) |
-| OpenAI Codex CLI | нет, мост `mcp-remote` | [docs/install-codex.md](docs/install-codex.md) |
+| Client | SSE directly | Guide |
+|--------|--------------|-------|
+| Claude Code | yes | [docs/install-claude-code.md](docs/install-claude-code.md) |
+| Claude Desktop | no, `mcp-remote` bridge | [docs/install-claude-desktop.md](docs/install-claude-desktop.md) |
+| Cursor | yes | [docs/install-cursor.md](docs/install-cursor.md) |
+| Windsurf / Devin Desktop | yes | [docs/install-windsurf.md](docs/install-windsurf.md) |
+| VS Code (GitHub Copilot) | yes | [docs/install-vscode-copilot.md](docs/install-vscode-copilot.md) |
+| Cline | yes | [docs/install-cline.md](docs/install-cline.md) |
+| Continue.dev | yes | [docs/install-continue.md](docs/install-continue.md) |
+| Zed | unconfirmed, bridge recommended | [docs/install-zed.md](docs/install-zed.md) |
+| JetBrains AI Assistant / Junie | yes | [docs/install-jetbrains.md](docs/install-jetbrains.md) |
+| Gemini CLI | yes | [docs/install-gemini-cli.md](docs/install-gemini-cli.md) |
+| OpenAI Codex CLI | no, `mcp-remote` bridge | [docs/install-codex.md](docs/install-codex.md) |
 
-Самый короткий пример — Claude Code:
+The shortest example, Claude Code:
 
 ```bash
 claude mcp add --transport sse ozon http://localhost:8000/sse \
   --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
 ```
 
-Сводка по клиентам и справочник по мосту — [docs/README.md](docs/README.md).
+Client summary and the bridge reference: [docs/README.md](docs/README.md).
 
-## Мульти-магазин и безопасность
+## Multi-store and security
 
-Кабинеты добавляются в веб-интерфейсе, каждый инструмент принимает обязательный
-параметр `shop_id`; узнать доступные — инструментом `ozon_list_shops`. В чате это
-выглядит так: «покажи остатки в магазине `alpha`».
+Stores are added in the web UI, and every tool takes a required `shop_id`;
+`ozon_list_shops` tells you which ones exist. In chat it looks like this:
+"show me the stock in store `alpha`".
 
-Главная выгода не в самом переключении, а в том, что **стратегия пишется один раз
-и раскатывается на все кабинеты**: правило по ценам, по ответам на отзывы или по
-ставкам применяется ко всем магазинам сразу — без перелогинивания в кабинеты и без
-копирования ключей по конфигам разных клиентов.
+The real gain is not the switching itself but that **a strategy is written once and
+rolled out to every account**: a rule about prices, review replies or ad bids
+applies to all stores at once — no logging in and out of seller accounts, no
+copying keys between client configs.
 
-Цена такого подхода — общий IP. Все кабинеты ходят в Ozon с одного адреса: с того
-сервера, где стоит MCP. Лимиты Ozon считаются в том числе по адресу, и чем больше
-кабинетов и чем активнее по ним работают стратегии, тем ближе суммарный поток к
-порогу, за которым начинается throttling или блокировка.
+The price you pay is a shared IP. Every account talks to Ozon from one address:
+the server the MCP runs on. Ozon's rate limits are counted per address among other
+things, so the more accounts you have and the harder your strategies work them, the
+closer the combined traffic gets to the threshold where throttling or a block kicks in.
 
-- ограничения на число магазинов в коде **нет**;
-- реальный потолок задаёт не сервер, а лимиты Ozon на один IP;
-- порядка двадцати кабинетов — оценка автора, при которой поток остаётся в
-  безопасной зоне;
-- дальше — разносить магазины по нескольким серверам с разными адресами.
+- there is **no** limit on the number of stores in the code;
+- the real ceiling comes from Ozon's per-IP limits, not from this server;
+- around twenty accounts is the author's own estimate of where the traffic still
+  stays in the safe zone;
+- beyond that, spread the stores across several servers with different addresses.
 
-Приближение к лимиту видно заранее, и как раз в веб-интерфейсе: растёт число
-неудачных ping и предупреждений в диагностике, в статистике вызовов подскакивает
-доля ошибок. Отличить одно от другого тоже можно по дашборду: массовый throttling
-выглядит как одновременная деградация многих инструментов, поломка эндпоинта —
-как деградация одного.
+You can see the limit approaching, and the place to see it is the web UI: failed
+pings and diagnostics warnings start piling up, and the error share in the call
+statistics jumps. The dashboard also tells the two cases apart — mass throttling
+looks like many tools degrading at once, a broken endpoint like a single one.
 
-Как хранятся ключи:
+How keys are stored:
 
-- при первом обращении в `DATA_DIR` создаётся `.encryption_key` — ключ Fernet;
-- ключи магазинов шифруются им и лежат в `DATA_DIR/shops.json`;
-- в веб-интерфейсе ключи показываются замаскированными (`abc***xyz`), при
-  сохранении маскированное значение не перезаписывает настоящее;
-- в Docker всё это лежит в томе `ozon_data`; перенос на другую машину — копирование
-  тома целиком, иначе потеряется ключ шифрования (см. [DEPLOY.md](DEPLOY.md)).
+- on first use, `.encryption_key` — a Fernet key — is created in `DATA_DIR`;
+- store keys are encrypted with it and kept in `DATA_DIR/shops.json`;
+- the web UI shows keys masked (`abc***xyz`), and saving a masked value does not
+  overwrite the real one;
+- under Docker all of this lives in the `ozon_data` volume. To move to another
+  machine, copy the whole volume — otherwise you lose the encryption key
+  (see [DEPLOY.md](DEPLOY.md), Russian).
 
-Что важно знать про доступ:
+What to know about access:
 
-- `MCP_AUTH_TOKEN` защищает **только** `/sse`. Токен передаётся заголовком
-  `Authorization: Bearer …` либо параметром `?token=…`.
-- Пустой `MCP_AUTH_TOKEN` = авторизация выключена. Так можно только в доверенной сети.
-- Веб-интерфейс (`/`, `/shops`, `/diagnostics`) и `/api/*` **токеном не закрыты**:
-  кто имеет сетевой доступ к порту, тот видит дашборд и может добавлять магазины.
-- Не пробрасывайте порт 8000 в интернет напрямую. Для доступа извне — Tailscale
-  или VPN.
-- HTTPS сервер не терминирует. Нужен внешний доступ по TLS — ставьте reverse proxy.
+- `MCP_AUTH_TOKEN` protects **only** `/sse`. Pass it as the
+  `Authorization: Bearer …` header or as a `?token=…` query parameter.
+- An empty `MCP_AUTH_TOKEN` means no authentication at all. Only acceptable on a
+  trusted network.
+- The web UI (`/`, `/shops`, `/diagnostics`) and `/api/*` are **not** behind the
+  token: anyone who can reach the port sees the dashboard and can add stores.
+- Do not expose port 8000 to the internet directly. For remote access use
+  Tailscale or a VPN.
+- The server does not terminate HTTPS. If you need TLS from outside, put a reverse
+  proxy in front.
 
-## Веб-интерфейс: видно каждый вызов
+## The web UI: every call is visible
 
-У обычного MCP-сервера вызовы уходят в никуда: ассистент что-то сделал, а что
-именно, за сколько и с какой ошибкой — известно только ему. Здесь на каждый вызов
-есть строчка в журнале, а на каждый сломавшийся инструмент — отметка на дашборде.
-Для инструмента, который управляет реальными деньгами в магазине, это не
-украшение, а условие доверия.
+With a typical MCP server, calls vanish into the void: the assistant did
+something, but what exactly, how long it took and what error it hit is known only
+to the assistant. Here every call gets a line in the log, and every broken tool
+gets a marker on the dashboard. For a tool that moves real money in a store, that
+is not decoration — it is the condition for trusting it.
 
-Статистика вызовов и история проверок собраны не на синтетике: больше пяти месяцев
-ежедневной работы примерно на двадцати кабинетах. Оттуда же и список пойманных
-изменений Ozon API в разделе про ограничения — он не выписан из документации, а
-взят из журнала деградаций.
+The call statistics and check history are not synthetic: they come from more than
+five months of daily use across roughly twenty seller accounts. The list of caught
+Ozon API changes in the limitations section comes from the same place — it was
+read off the degradation log, not copied from the documentation.
 
-### Дашборд `/`
+### Dashboard `/`
 
-Скриншот — в начале страницы.
+The screenshot is at the top of this page.
 
-- Четыре счётчика сверху: всего вызовов, за сегодня, ошибок, средняя длительность
-  вызова в миллисекундах.
-- Топ-10 инструментов: сколько раз вызывали, среднее время, сколько из них
-  завершились ошибкой.
-- Лента последних 50 вызовов: время, `shop_id`, имя инструмента, длительность,
-  успех или ошибка и текст ошибки.
-- Фильтр по магазину (`/?shop=alpha`) — те же цифры по одному кабинету.
-- Сверху всплывают два предупреждения: о деградировавших инструментах и о том,
-  что последняя проверка Ozon API нашла проблемы.
+- Four counters at the top: total calls, calls today, errors, and average call
+  duration in milliseconds.
+- Top 10 tools: call count, average duration, and how many of those calls failed.
+- A feed of the last 50 calls: timestamp, `shop_id`, tool name, duration, success
+  or failure, and the error text.
+- A per-store filter (`/?shop=alpha`) — the same figures for a single account.
+- Two banners surface at the top: degraded tools, and "the last Ozon API check
+  found problems".
 
-### Магазины `/shops`
+### Stores `/shops`
 
-![Страница магазинов](docs/img/shops.png)
+![Stores page](https://raw.githubusercontent.com/DeviceIngineering/ozon-mcp-server/main/docs/img/shops.png)
 
-Кабинеты добавляются и удаляются прямо в браузере, без правки файлов и
-перезапуска контейнера. Кнопка «Проверить» делает живой запрос к обоим API
-(`POST /api/shops/{shop_id}/test`) — ключи проверяются сразу при добавлении, а не
-в момент первого рабочего вызова посреди задачи. Токены шифруются Fernet, ключ
-шифрования лежит в `DATA_DIR/.encryption_key`, в интерфейсе ключи показываются
-замаскированными.
+Accounts are added and removed right in the browser, with no file editing and no
+container restart. The "Проверить" (Test) button makes a live request to both APIs
+(`POST /api/shops/{shop_id}/test`), so keys are verified when you add them rather
+than during the first real call in the middle of a task. Tokens are encrypted with
+Fernet, the encryption key lives in `DATA_DIR/.encryption_key`, and the UI shows
+keys masked.
 
-### Диагностика `/diagnostics`
+### Diagnostics `/diagnostics`
 
-![Страница диагностики](docs/img/diagnostics.png)
+![Diagnostics page](https://raw.githubusercontent.com/DeviceIngineering/ozon-mcp-server/main/docs/img/diagnostics.png)
 
-*(на скриншоте — демо-магазин с заведомо неверными ключами, поэтому все пробы красные)*
+*(the screenshot shows a demo store with deliberately invalid keys, which is why
+every probe is red)*
 
-- По каждому магазину: заданы ли ключи, доступность хостов Ozon, 12 проб
-  категорий Seller API, проверка ключей Performance API.
-- Фоновая проверка каждые `HEALTH_CHECK_INTERVAL_MIN` минут (по умолчанию 30,
-  `0` — выключить) и кнопка «Проверить сейчас» для немедленного прогона
-  (`POST /api/diagnostics/run`).
-- История проверок: время, магазин, статус, число неудачных ping, число неудачных
-  проб и текст предупреждений. В интерфейсе показываются последние 30 записей,
-  в базе хранится до 1000 с автоматической ротацией.
-- Те же данные доступны из чата инструментом `ozon_diagnostics`.
+- Per store: whether keys are set, Ozon host availability, 12 Seller API category
+  probes, and a Performance API key check.
+- A background check every `HEALTH_CHECK_INTERVAL_MIN` minutes (30 by default,
+  `0` disables it), plus a "Проверить сейчас" (Check now) button for an immediate
+  run (`POST /api/diagnostics/run`).
+- Check history: time, store, status, number of failed pings, number of failed
+  probes, and the warning texts. The UI shows the last 30 entries; up to 1000 are
+  kept in the database with automatic rotation.
+- The same data is available from chat through the `ozon_diagnostics` tool.
 
-### Детектор деградаций
+### Degradation detector
 
-Сервер сам замечает, что Ozon сломал или отключил эндпоинт, — не по документации
-и не по факту сорванной работы, а по собственной статистике. Инструмент, у
-которого последние три вызова подряд завершились ошибкой, но раньше были
-успешные, попадает в список деградаций: там видно имя инструмента, время
-последнего успешного вызова, число ошибок подряд и текст последней. На дашборде
-это красная плашка, на странице диагностики — таблица.
+The server notices on its own that Ozon broke or switched off an endpoint — not
+from the documentation and not from work that failed, but from its own statistics.
+A tool whose last three calls in a row failed while earlier calls succeeded lands
+in the degradation list, which shows the tool name, the time of the last successful
+call, the number of consecutive errors, and the text of the latest one. On the
+dashboard that is a red banner; on the diagnostics page, a table.
 
-Практический смысл: изменение на стороне Ozon видно в тот день, когда оно
-произошло, а не через неделю, когда обнаружится, что цены не обновлялись.
-Из чата тот же список отдаёт инструмент `ozon_degradations`.
+What this buys you: a change on Ozon's side becomes visible the day it happens,
+not a week later when you discover prices haven't been updating. The same list is
+available from chat via `ozon_degradations`.
 
-### JSON для внешнего мониторинга
+### JSON for external monitoring
 
-Всё перечисленное снимается программно, а не только глазами:
+All of the above can be scraped programmatically, not just looked at:
 
-| Эндпоинт | Что отдаёт |
-|----------|------------|
-| `GET /api/health` | статус сервиса, включена ли авторизация, последние проверки, деградировавшие инструменты |
-| `GET /api/stats` | та же сводка, что на дашборде; `?shop=` — по одному магазину |
-| `GET /api/diagnostics/{shop_id}` | полная живая диагностика магазина |
+| Endpoint | What it returns |
+|----------|-----------------|
+| `GET /api/health` | service status, whether authentication is on, recent checks, degraded tools |
+| `GET /api/stats` | the same summary as the dashboard; `?shop=` narrows it to one store |
+| `GET /api/diagnostics/{shop_id}` | a full live diagnostic run for one store |
 
-Так сервер заводится в Zabbix, Uptime Kuma или в обычный `curl` по cron.
+That is enough to wire the server into Zabbix, Uptime Kuma, or a plain `curl` in cron.
 
-## Расход контекста
+## Context budget
 
-Определения инструментов клиент получает один раз за сессию — и платит за них
-токенами в каждом запросе. 151 инструмент Ozon весит **12 344 токена** против
-18 386 до версии 2.2.0. Что для этого сделано:
+Two things are paid in tokens: tool definitions, loaded once per session, and tool
+responses, paid on every call. Both were measured on a live seller account rather
+than estimated — `scripts/collect_corpus.py` takes a snapshot of read-only tools
+(PII masked before anything is written to disk, the corpus stays out of the repo),
+`scripts/measure_corpus.py` reports what it costs.
 
-- **Компактный JSON в ответах.** Сериализация без отступов: типичный ответ на
-  20 карточек — 1 584 токена вместо 2 569 (−39% на каждом вызове).
-- **`shop_id` в схемах.** При единственном магазине параметр не объявляется —
-  сервер подставляет его сам. Как только магазинов становится больше одного,
-  он возвращается в схемы всех инструментов.
-- **Описания.** Одна фраза на инструмент: английская формулировка плюс русские
-  ключевые слова в скобках, чтобы поиск по «акции» или «остатки» продолжал
-  находить нужное. Кириллица стоит в 3-4 раза дороже латиницы — 2,15 символа
-  на токен против ~4.
-- **Лимиты по умолчанию.** Списки отдают 100 записей, финансовые отчёты — 500.
-  Больше — явным `limit`; прежний дефолт в 100 000 строк упирался в потолок
-  вывода клиента и обрезался на полуслове.
+**Definitions.** 151 tools cost **12 300 tokens** with a single store configured,
+down from 18 386: one-sentence descriptions, `shop_id` dropped from the schemas when
+only one store exists, no empty schema fields.
 
-**Что меряется, а не предполагается.** `scripts/collect_corpus.py` снимает ответы
-читающих инструментов с живого кабинета (ПДн маскируются до записи, корпус в
-репозиторий не коммитится), `scripts/measure_corpus.py` считает, во что они
-обходятся контексту. Замер в сентябре 2026 показал, что проблема не в схемах,
-а в нескольких ответах-гигантах:
+**Responses.** The real problem turned out to be a handful of giant payloads:
 
-| инструмент | было | стало |
+| tool | before | after |
 |---|---:|---:|
-| `ozon_category_tree` — дерево из 9 797 узлов | 266 324 тк | 979 тк |
-| `ozon_get_prices` — 93 % веса это история акций | 52 879 тк | 8 679 тк |
-| `ozon_warehouse_list` — 99 % веса это расписание склада на год | 20 132 тк | 370 тк |
-| `ozon_returns_fbo` — 50 возвратов со всей логистикой | 24 277 тк | 8 458 тк |
-| **весь корпус из 16 ответов** | **476 158 тк** | **63 845 тк** |
+| `ozon_category_tree` — a 9 797-node tree | 266 324 | 979 |
+| `ozon_get_prices` — 93 % of the weight is promo history | 52 879 | 8 679 |
+| `ozon_returns_fbo` — 50 returns with full logistics | 24 277 | 8 458 |
+| `ozon_warehouse_list` — 99 % of the weight is a year of timetables | 20 132 | 370 |
+| **corpus of 16 live responses** | **476 158** | **63 845** |
 
-Что для этого сделано:
+What the server does about it:
 
-- **`view: compact | full`.** Тяжёлые инструменты по умолчанию отдают поля, ради
-  которых их и вызывают; `view="full"` возвращает сырой ответ API. Какие поля
-  скрыты — сказано прямо в ответе, чтобы модель знала, что можно запросить ещё.
-- **Сигнал усечения.** Если записей вернулось ровно столько, сколько просили,
-  к ответу добавляется предупреждение: данные неполные, есть следующая страница.
-- **Предохранитель размера.** Ответ, который не помещается в потолок вывода
-  клиента, режется на сервере с явным указанием, сколько записей осталось из
-  скольких — вместо молчаливой обрезки на стороне клиента.
-- **Поиск и глубина в `ozon_category_tree`.** У API нет ни того, ни другого:
-  дерево отдаётся целиком. `search` находит категорию, `depth` управляет уровнем,
-  по умолчанию возвращается верхний уровень.
+- **`view: compact | full`.** Heavy tools return the fields they are called for;
+  `view="full"` gives the raw API response, and the answer states which fields were
+  hidden so the model knows what it can ask for.
+- **Truncation signal.** When exactly `limit` records come back, the answer says the
+  data is partial — otherwise the model reasons about a slice and presents it as the
+  whole catalogue.
+- **Size guard.** A response that would not fit the client's output ceiling
+  (`MAX_MCP_OUTPUT_TOKENS`, 25 000 by default in Claude Code) is cut server-side with
+  a count of what was left out, instead of being silently truncated on arrival.
+- **Search and depth for the category tree.** The API has neither and returns all
+  9 797 nodes; `search` finds a category, `depth` controls the level, and the default
+  is the top level only.
 
-Заметки приходят отдельными блоками ответа, а не полем внутри JSON: у части ручек
-Ozon верхний уровень — массив, и обёртка сломала бы привычные пути к данным.
+Notes arrive as separate content blocks rather than a field inside the JSON: several
+Ozon endpoints return an array at the top level, and wrapping it would break every
+path into the data.
 
-**Профили инструментов.** Клиенту без tool search каталог из 151 инструмента
-обходится в 12 700 токенов на каждый запрос. `OZON_TOOLSETS` оставляет только нужные
-профили — они нарезаны по рабочим задачам, а не по разделам документации Ozon, потому
-что аудит акций требует одновременно акций, цен и карантина:
+**Tool profiles.** A client without tool search pays for the whole catalogue on every
+request. `OZON_TOOLSETS` keeps only the profiles you use, cut along working tasks
+rather than documentation sections:
 
-| `OZON_TOOLSETS` | инструментов | токенов |
+| `OZON_TOOLSETS` | tools | tokens |
 |---|---:|---:|
-| пусто (по умолчанию) | 151 | 12 686 |
+| empty (default) | 151 | 12 686 |
 | `pricing,ads` | 57 | 5 425 |
 | `orders` | 33 | 2 611 |
 
+The `core` profile — stores, diagnostics, degradations, company — is always on:
+diagnostics are needed exactly when something is broken. Disabled profiles are listed
+in the `ozon_list_shops` description, and calling a disabled tool answers which profile
+contains it, so the assistant names the reason instead of saying "this is not possible".
 
-Профиль `core` — магазины, диагностика, деградации, данные о компании — включён всегда:
-диагностика нужна ровно тогда, когда что-то сломалось. Выключенные профили
-перечисляются в описании `ozon_list_shops`, а вызов отключённого инструмента отвечает,
-какой профиль его содержит, — чтобы ассистент назвал причину, а не сказал «такой
-возможности нет».
+Claude Code needs none of this: it has tool search enabled by default. Cursor, Cline,
+Continue and Claude Desktop fetch `tools/list` whole — profiles are for them.
 
-Остальное зависит от клиента, а не от сервера:
+## Design decisions
 
-- **Claude Code** не грузит определения вперёд — там включён tool search, в
-  контексте остаются только имена, а схемы подтягиваются под задачу. Отключается
-  переменной `ENABLE_TOOL_SEARCH=false`.
-- **Cursor, Cline, Continue, Claude Desktop** забирают `tools/list` целиком, и эти
-  12 344 токена попадают в каждый запрос. Если подключены оба сервера — WB и
-  Ozon — контекст платит за 353 инструмента сразу.
-- **Потолок вывода одного вызова** в Claude Code — `MAX_MCP_OUTPUT_TOKENS`,
-  по умолчанию 25 000 токенов; предупреждение приходит с 10 000.
+- **151 narrow tools, not a few generic ones.** Collapsing them into `action`-style
+  endpoints would save definition tokens and change the class of failure: instead of
+  "no such tool" you get a wrong call with a side effect, and some of these tools set
+  prices and start ad campaigns.
+- **The server diagnoses itself.** `ozon_diagnostics` checks host availability and
+  runs a light real request across 12 Seller API categories plus the Performance API
+  keys; `ozon_degradations` reports which tools used to work and now fail steadily.
+  Ozon retires endpoints without notice, so "is it my keys or did the API move" has to
+  be answerable in one call.
+- **`compact` is the default for heavy tools.** The corpus showed the hidden fields are
+  promo history, warehouse timetables and logistics internals — not the data decisions
+  are made from — and the response says what was hidden.
+- **Response shaping hangs on a contextvar.** The dispatcher here is one long if-chain
+  with 150 `_json` calls; threading the tool name and arguments through every branch by
+  hand would be 150 edit sites and 150 chances to miss one.
+- **`shop_id` disappears from schemas with one store**, and comes back the moment a
+  second one appears.
+- **`mcp<2` is pinned deliberately** — the 2.0 low-level API drops the decorator
+  handlers this server is built on; the pin is documented where it is set.
+- **Keys are encrypted at rest** (Fernet, key in the data volume) and masked in the UI;
+  the corpus collector masks personal data before writing a file.
 
-## Как это устроено
+## How it works
 
-Один Docker-контейнер, внутри FastAPI-приложение, которое совмещает MCP-сервер и
-веб-интерфейс.
+A single Docker container running a FastAPI application that is both the MCP
+server and the web UI.
 
-- **`ozon_mcp/server.py`** — сам MCP-сервер. Список `TOOLS` описывает 151
-  инструмент (имя, описание, JSON-схема аргументов), обработчик `call_tool`
-  маршрутизирует вызов в нужный метод клиента Ozon. Клиенты кешируются в пуле по
-  `shop_id`, так что переключение между магазинами ничего не переподключает.
-- **`ozon_mcp/client.py`** — два HTTP-клиента: `OzonSellerClient` (заголовки
-  `Client-Id` / `Api-Key`) и `OzonPerformanceClient` (токен `client_credentials`,
-  живёт 30 минут и обновляется сам).
-- **`ozon_mcp/app.py`** — FastAPI: эндпоинт `/sse` поверх `SseServerTransport`,
-  проверка Bearer-токена, страницы дашборда, магазинов и диагностики, фоновая
-  задача health-проверки.
-- **`ozon_mcp/settings.py`** — магазины и ключи: шифрование Fernet, маскирование
-  для UI, подхват ключей из переменных окружения как магазина `default`, миграция
-  старого однобазового `settings.json` в `shops.json`.
-- **`ozon_mcp/diagnostics.py`** — пробы: пинг хостов Ozon плюс лёгкие реальные
-  запросы по 12 категориям Seller API и проверка ключей Performance API.
-- **`ozon_mcp/stats.py`** — SQLite через `aiosqlite`: каждый вызов инструмента с
-  временем и результатом, история health-проверок, расчёт деградаций.
+- **`ozon_mcp/server.py`** — the MCP server itself. The `TOOLS` list describes all
+  151 tools (name, description, JSON schema for the arguments) and the `call_tool`
+  handler routes each call to the right Ozon client method. Clients are pooled per
+  `shop_id`, so switching stores reconnects nothing.
+- **`ozon_mcp/client.py`** — two HTTP clients: `OzonSellerClient` (`Client-Id` /
+  `Api-Key` headers) and `OzonPerformanceClient` (a `client_credentials` token that
+  lives 30 minutes and refreshes itself).
+- **`ozon_mcp/app.py`** — FastAPI: the `/sse` endpoint on top of
+  `SseServerTransport`, Bearer-token checking, the dashboard/stores/diagnostics
+  pages, and the background health-check task.
+- **`ozon_mcp/settings.py`** — stores and keys: Fernet encryption, masking for the
+  UI, picking up keys from environment variables as a store called `default`, and
+  migrating the old single-store `settings.json` into `shops.json`.
+- **`ozon_mcp/diagnostics.py`** — probes: pinging Ozon hosts plus lightweight real
+  requests across 12 Seller API categories, and a Performance API key check.
+- **`ozon_mcp/stats.py`** — SQLite via `aiosqlite`: every tool call with its
+  duration and outcome, health-check history, degradation calculation.
 
-Хосты, в которые ходит сервер:
+The hosts the server talks to:
 
-| API | Базовый URL | Авторизация |
-|-----|-------------|-------------|
-| Seller API | api-seller.ozon.ru | заголовки `Client-Id` и `Api-Key` |
-| Performance API (реклама) | api-performance.ozon.ru | OAuth `client_credentials`, токен на 30 минут |
+| API | Base URL | Authorization |
+|-----|----------|---------------|
+| Seller API | api-seller.ozon.ru | `Client-Id` and `Api-Key` headers |
+| Performance API (ads) | api-performance.ozon.ru | OAuth `client_credentials`, 30-minute token |
 
-Неочевидные места:
+Non-obvious things:
 
-- Ставки и бюджеты рекламы Ozon отдаёт в **микрорублях**: `1000000` = 1 ₽.
-  Не удивляйтесь семизначным числам.
-- `403` на отзывах и вопросах — это не поломка, а отсутствие подписки
-  Premium Plus. Диагностика такие ответы ошибкой не считает.
-- Ключи Ozon стали срочными после ротации 13.02.2026 — 180 дней. Срок отдаётся
-  явно: `POST /v1/roles` возвращает `expires_at`, так что об истечении можно
-  предупреждать заранее, а не ловить его по `401` в пробах.
-- Асинхронная статистика рекламы — один отчёт одновременно, ≤10 кампаний, ≤62 дня;
-  инструмент ждёт готовности отчёта до ~2 минут.
-- Статусы заявок на поставку в API v3 — целые числа 1–8, а не строки.
+- Ozon returns ad bids and budgets in **micro-rubles**: `1000000` = 1 ₽. Don't be
+  surprised by seven-digit numbers.
+- A `403` on reviews and questions is not a breakage — it means no Premium Plus
+  subscription. Diagnostics does not count those as errors.
+- Ozon API keys became time-limited after the 2026-02-13 rotation — 180 days. The
+  expiry is exposed explicitly: `POST /v1/roles` returns `expires_at`, so you can
+  warn ahead of time instead of catching a `401` in the probes.
+- Asynchronous ad statistics: one report at a time, ≤10 campaigns, ≤62 days. The
+  tool waits up to about 2 minutes for the report to be ready.
+- Supply-order statuses in API v3 are integers 1–8, not strings.
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | По умолчанию | Зачем |
-|------------|--------------|-------|
-| `MCP_AUTH_TOKEN` | пусто | Bearer-токен для `/sse`. Пусто = без авторизации |
-| `HEALTH_CHECK_INTERVAL_MIN` | `30` | интервал фоновой диагностики, `0` — выключить |
-| `PORT` | `8000` | порт HTTP-сервера |
-| `OZON_TOOLSETS` | пусто | профили инструментов через запятую: `pricing`, `ads`, `catalog`, `orders`, `analytics`, `feedback`, `finance`; пусто — все 151 |
-| `OZON_MAX_RESPONSE_CHARS` | `60000` | порог предохранителя размера ответа |
-| `DATA_DIR` | `/data` | каталог с `shops.json`, `stats.db`, `.encryption_key` |
-| `OZON_CLIENT_ID`, `OZON_API_KEY` | пусто | ключи Seller API для магазина `default`, если не хочется вводить их в UI |
-| `OZON_PERF_CLIENT_ID`, `OZON_PERF_CLIENT_SECRET` | пусто | то же для Performance API |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MCP_AUTH_TOKEN` | empty | Bearer token for `/sse`. Empty = no authentication |
+| `HEALTH_CHECK_INTERVAL_MIN` | `30` | background diagnostics interval, `0` disables it |
+| `PORT` | `8000` | HTTP server port |
+| `OZON_TOOLSETS` | empty | comma-separated tool profiles: `pricing`, `ads`, `catalog`, `orders`, `analytics`, `feedback`, `finance`; empty means all 151 |
+| `OZON_MAX_RESPONSE_CHARS` | `60000` | size-guard threshold for a single response |
+| `DATA_DIR` | `/data` | directory holding `shops.json`, `stats.db`, `.encryption_key` |
+| `OZON_CLIENT_ID`, `OZON_API_KEY` | empty | Seller API keys for the `default` store, if you'd rather not use the UI |
+| `OZON_PERF_CLIENT_ID`, `OZON_PERF_CLIENT_SECRET` | empty | the same for the Performance API |
 
-## Известные ограничения Ozon API (актуально на август 2026)
+## Known Ozon API limitations (as of August 2026)
 
-- Реклама: создание кампаний через API — только «Трафареты» (CPC); бюджеты и
-  ставки в микрорублях; официального метода узнать баланс рекламного кабинета нет.
-- «Оплата за заказ»: ставки фиксированные (с февраля 2025), доступны только
-  включение и выключение.
-- Отзывы, вопросы и часть аналитики требуют подписку Premium Plus (ошибка code 7).
-- Метрики воронки в `ozon_analytics` помечены Ozon как deprecated — для позиций
-  в поиске используйте `ozon_product_queries`.
-- **Отключения Ozon осенью 2026.** Даты из официального канала @OzonSellerAPI,
-  сверены на живых кабинетах ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6),
-  спасибо [@standlord-prog](https://github.com/standlord-prog)):
+- Advertising: the API can only create "Trafarety" CPC campaigns; budgets and bids
+  are in micro-rubles; there is no official way to read the ad account balance.
+- "Pay per order": bids have been fixed since February 2025 — you can only turn
+  the promotion on or off.
+- Reviews, questions and part of analytics require a Premium Plus subscription
+  (error code 7).
+- Funnel metrics in `ozon_analytics` are marked deprecated by Ozon — use
+  `ozon_product_queries` for search positions.
+- **Endpoints Ozon is switching off in autumn 2026.** Dates from the official
+  @OzonSellerAPI channel, verified against live seller accounts
+  ([issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6),
+  thanks to [@standlord-prog](https://github.com/standlord-prog)):
 
-  | путь | гаснет | что вместо |
+  | path | goes dark | replacement |
   |---|---|---|
-  | `/v3/posting/fbs/list` | 31.08.2026 | `/v4/posting/fbs/list` — **сделано в v2.1.0** |
-  | `/v2/posting/fbo/list` | 31.08.2026 | `/v3/posting/fbo/list` — **сделано в v2.1.0** |
-  | `/v3/posting/fbs/unfulfilled/list` | 31.08.2026 | замены нет: отбор из `/v4/posting/fbs/list` по статусам — **сделано в v2.1.0** |
-  | `/v2/posting/fbs/act/create` | 07.09.2026 | `/v1/carriage/create` + `/v1/carriage/approve` — в работе |
-  | `/v3/finance/transaction/list` | 08.09.2026 | `/v1/finance/accrual/by-day` — в работе |
-  | `/v3/finance/transaction/totals` | 08.09.2026 | то же — в работе |
+  | `/v3/posting/fbs/list` | 2026-08-31 | `/v4/posting/fbs/list` — **done in v2.1.0** |
+  | `/v2/posting/fbo/list` | 2026-08-31 | `/v3/posting/fbo/list` — **done in v2.1.0** |
+  | `/v3/posting/fbs/unfulfilled/list` | 2026-08-31 | no replacement: filtered out of `/v4/posting/fbs/list` by status — **done in v2.1.0** |
+  | `/v2/posting/fbs/act/create` | 2026-09-07 | `/v1/carriage/create` + `/v1/carriage/approve` — in progress |
+  | `/v3/finance/transaction/list` | 2026-09-08 | `/v1/finance/accrual/by-day` — in progress |
+  | `/v3/finance/transaction/totals` | 2026-09-08 | same — in progress |
 
-  `/v4/posting/fbs/list` — не переименование v3: `postings` лежат на верхнем уровне,
-  а не под `result`, и пагинация курсорная (`has_next` + `cursor`) вместо `offset`.
-- `ozon_finance_cash_flow` и `ozon_finance_accruals` уже работают на новых путях
+  `/v4/posting/fbs/list` is not a rename of v3: `postings` sit at the top level
+  rather than under `result`, and pagination is cursor-based (`has_next` + `cursor`)
+  instead of `offset`.
+- `ozon_finance_cash_flow` and `ozon_finance_accruals` already run on the new paths
   (`/v1/finance/cash-flow-statement/list`, `/v1/finance/accrual/by-day`).
-- `ozon_product_stocks_by_warehouse` использует v2, потому что v1 отключается 07.04.2026.
-- Цифровые акты приёма-передачи FBS удалены Ozon 22.03.2026 — используется обычный акт.
-- Метода «обновить ответ на отзыв» в Ozon API нет: ответ удаляется и создаётся заново.
+- `ozon_product_stocks_by_warehouse` uses v2 because v1 is switched off on 2026-04-07.
+- Digital FBS handover acts were removed by Ozon on 2026-03-22 — the regular act
+  is used instead.
+- The Ozon API has no "edit a review reply" method: the reply is deleted and
+  written again.
 
-Список собран не переписыванием справки: это журнал деградаций и пять месяцев
-ежедневных вызовов, сверенные с документацией docs.ozon.ru по состоянию на август 2026.
+This list is not a rewrite of the reference: it comes from the degradation log and
+five months of daily calls, cross-checked against docs.ozon.ru as of August 2026.
 
-## Что изменилось в версии 2.0
+## What changed in version 2.0
 
-Полная ревизия под Ozon API июня 2026 со сверкой живыми запросами: единый список
-возвратов, отмены v2, реализация v2, ship v4, supply-order v3, реальные ценовые
-стратегии и «Хочу скидку», собственные акции продавца, новая модель рекламы
-(трафареты CPC + «Оплата за заказ»), диагностика и детектор деградаций,
-авторизация MCP-эндпоинта.
+A full revision against the June 2026 Ozon API, verified by running real requests
+rather than reading docs: the unified returns list, cancellations v2, realization
+v2, ship v4, supply-order v3, real pricing strategies and "I want a discount",
+the seller's own promotions, the new advertising model (Trafarety CPC + "Pay per
+order"), diagnostics with a degradation detector, and authentication on the MCP
+endpoint.
 
-## Структура проекта
+## Project layout
 
 ```
 ozon-mcp-server/
-├── docker-compose.yml   # порт 8000, том ozon_data
+├── docker-compose.yml   # port 8000, ozon_data volume
 ├── Dockerfile           # python:3.12-slim, uvicorn
-├── DEPLOY.md            # деплой на отдельную машину, перенос данных
-├── docs/                # подключение клиентов + справочник инструментов
+├── DEPLOY.md            # deploying to a dedicated machine, moving data
+├── docs/                # client connection guides + tool reference
 └── ozon_mcp/
-    ├── server.py        # MCP-сервер: 151 инструмент, мульти-магазин
+    ├── server.py        # MCP server: 151 tools, multi-store
     ├── client.py        # Seller API + Performance API
-    ├── app.py           # FastAPI: SSE, веб, авторизация, health-loop
-    ├── diagnostics.py   # пробы категорий, детектор деградаций
-    ├── settings.py      # магазины и ключи (Fernet)
-    ├── stats.py         # статистика вызовов и история проверок (SQLite)
+    ├── app.py           # FastAPI: SSE, web, auth, health loop
+    ├── diagnostics.py   # category probes, degradation detector
+    ├── settings.py      # stores and keys (Fernet)
+    ├── stats.py         # call statistics and check history (SQLite)
     └── templates/       # dashboard, diagnostics, shops
 ```
 
-Деплой на отдельную машину и перенос магазинов — [DEPLOY.md](DEPLOY.md).
+Deploying to a dedicated machine and moving stores across:
+[DEPLOY.md](DEPLOY.md) (Russian).
 
-## Тот же сервер для Wildberries
+## The same server for Wildberries
 
-[**wb-mcp-server**](https://github.com/DeviceIngineering/wb-mcp-server) — тот же
-инструмент для второй площадки: одна архитектура, тот же веб-интерфейс с
-дашбордом и диагностикой, та же мульти-магазинность через `shop_id`, тот же
-транспорт SSE и те же способы подключения к клиентам.
+[**wb-mcp-server**](https://github.com/DeviceIngineering/wb-mcp-server) is the same
+tool for the other marketplace (Wildberries is the other large Russian
+marketplace): same architecture, same web UI with dashboard and diagnostics, same
+multi-store model via `shop_id`, same SSE transport, same ways of connecting
+clients.
 
 |  | Ozon MCP Server | WB MCP Server |
 |---|---|---|
-| Порт | 8000 | 8001 |
-| Инструментов | 151 | 202 |
-| API | Ozon Seller API + Performance API (реклама) | Wildberries Seller API |
+| Port | 8000 | 8001 |
+| Tools | 151 | 202 |
+| API | Ozon Seller API + Performance API (ads) | Wildberries Seller API |
 
-Практически это значит две вещи:
+In practice that means two things:
 
-- **Второй сервер ставится без нового обучения.** Разобрались с одним — второй
-  запускается по этой же инструкции; отличаются порт (8001 против 8000) и набор
-  инструментов.
-- **Держать оба на одной машине можно.** Порты разные, данные лежат в разных
-  Docker-томах, конфликта нет. В клиенте это просто два MCP-сервера: `ozon` на
-  `http://localhost:8000/sse` и `wb` на `http://localhost:8001/sse`.
+- **The second server takes no new learning.** Once you have set up one, the other
+  starts the same way; only the port (8001 instead of 8000) and the tool set differ.
+- **You can run both on one machine.** Different ports, data in separate Docker
+  volumes, no conflict. In your client they are simply two MCP servers: `ozon` at
+  `http://localhost:8000/sse` and `wb` at `http://localhost:8001/sse`.
 
-Соседство на одном сервере не мешает и по лимитам: наружу оба ходят с одного IP,
-но Ozon и Wildberries считают лимиты каждый у себя — это разные площадки.
-Ограничение по числу кабинетов из раздела про мульти-магазин действует внутри
-каждой площадки отдельно.
+Sharing one machine does not hurt on rate limits either: both go out from the same
+IP, but Ozon and Wildberries count limits on their own side — they are different
+marketplaces. The cap on the number of seller accounts described in the multi-store
+section applies within each marketplace separately.
 
-## Обновления и поддержка
+## Updates and support
 
-Ozon меняет API постоянно: эндпоинты добавляются, переименовываются и отключаются
-(в разделе про ограничения перечислено то, что уже поймано). Этот сервер —
-рабочий инструмент автора, и обновляется он **по мере собственной необходимости**:
-когда очередное изменение ломает что-то в его магазинах. Больше пяти месяцев
-ежедневной работы — и коммиты появляются тогда, когда Ozon что-то ломает, а не по
-расписанию. Пауза между коммитами обычно означает, что всё работает. Плюс такого
-подхода в том, что код проверяется реальной работой каждый день, а не выложен и
-забыт; минус — расписания и обязательств по срокам нет.
+Ozon changes its API constantly: endpoints get added, renamed and switched off
+(the limitations section above lists what has been caught so far). This server is
+the author's working tool, and it gets updated **when he needs it updated** — that
+is, when a change breaks something in his own stores. More than five months of
+daily use, and commits appear when Ozon breaks something, not on a schedule: a gap
+between commits usually means everything is working. The upside is that the code is
+proven by real daily use rather than published and forgotten; the downside is that
+there is no release schedule and no commitment on turnaround.
 
-Если исправление нужно срочно — напишите на **d0371153@gmail.com**.
-Issues и pull request'ы тоже приветствуются и разбираются.
+If you need a fix urgently, write to **d0371153@gmail.com**.
+Issues and pull requests are welcome too, and they do get read.
 
-## Благодарности
+## Acknowledgements
 
 - [@standlord-prog](https://github.com/standlord-prog):
-  - [issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6) — разбор
-    отключаемых методов Ozon с проверкой на живых кабинетах: даты, замены и три подводных
-    камня при переезде на `/v4`. Отдельно — предупреждение, что у `/v1/carriage/create`
-    нет обязательных полей и пустое тело `{}` создаёт настоящую отгрузку, и поправка
-    про `POST /v1/roles` с `expires_at`. На этой основе сделана версия **v2.1.0**.
-  - [PR #7](https://github.com/DeviceIngineering/ozon-mcp-server/pull/7) — нашёл и починил
-    слепую диагностику: в stdio-режиме статистика вызовов не поднималась вовсе, поэтому
-    `ozon_degradations` на любой вопрос отвечал «деградаций нет» — даже когда падал каждый
-    вызов. Инструмент помечен [P0] и нужен ровно в тот момент, когда что-то сломалось,
-    так что тихий ложноотрицательный ответ был хуже отсутствия инструмента. В PR — не
-    только починка, но и разделение «нет данных» и «нет деградаций», а также
-    интеграционный тест по stdio настоящим MCP-клиентом. Вошло в **v2.1.2**.
+  - [issue #6](https://github.com/DeviceIngineering/ozon-mcp-server/issues/6) — the breakdown
+    of Ozon endpoints being switched off, verified against live seller accounts: dates,
+    replacements and three gotchas in the move to `/v4`. Separately — the warning that
+    `/v1/carriage/create` has no required fields and an empty `{}` body creates a real
+    shipment, and the correction about `POST /v1/roles` returning `expires_at`.
+    Version **v2.1.0** is built on that work.
+  - [PR #7](https://github.com/DeviceIngineering/ozon-mcp-server/pull/7) — found and fixed
+    blind diagnostics: in stdio mode call statistics were never initialised, so
+    `ozon_degradations` answered "no degradations" to every question — even when every
+    single call was failing. The tool is marked [P0] and is asked precisely when something
+    has broken, which makes a silent false negative worse than having no tool at all. The
+    PR does not just fix the wiring: it also separates "no data" from "no degradations"
+    and adds an integration test over stdio with a real MCP client. Shipped in **v2.1.2**.
 
-## Лицензия
+## License
 
-MIT — см. [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
+
+## MCP Registry
+
+Published in the official [MCP Registry](https://registry.modelcontextprotocol.io/):
+
+```
+mcp-name: io.github.DeviceIngineering/ozon-mcp-server
+```

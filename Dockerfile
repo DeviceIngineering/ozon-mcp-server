@@ -4,7 +4,7 @@ WORKDIR /app
 
 # LICENSE и README нужны на этапе сборки: pyproject ссылается на них
 # в license и readme, без них pip install падает на генерации метаданных.
-COPY pyproject.toml LICENSE README.en.md ./
+COPY pyproject.toml LICENSE README.md ./
 COPY ozon_mcp/ ozon_mcp/
 
 RUN pip install --no-cache-dir .
