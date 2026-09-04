@@ -205,37 +205,139 @@ class OzonSellerClient:
         )
 
     # ── Финансы ────────────────────────────────────────────
+    # Услуги в начислениях, которые Ozon относит к возвратам и отменам.
+    # Логистика возврата приходит с type_id 32 и относится к доставке, а не к
+    # возвратам — разнесение идёт по type_id услуги, а не по типу операции
+    # (проверено сообществом на 9 месяцах по двум кабинетам, issue #6).
+    RETURN_SERVICE_TYPE_IDS = frozenset({45, 59})
+
     async def finance_transaction_list(
         self, date_from: str, date_to: str, page: int = 1, page_size: int = 50,
         operation_type: list[str] | None = None,
     ) -> dict:
-        """POST /v3/finance/transaction/list — финансовые транзакции.
+        """Финансовые операции за период — из начислений по дням.
 
-        ⚠️ Ozon отключает 06.07.2026 — замена: finance_cash_flow + finance_accrual_by_day.
+        `/v3/finance/transaction/list` отключён Ozon (объявленная дата 08.09.2026,
+        фактически отвечает 400 уже сейчас). Замены «одним запросом» нет:
+        `/v1/finance/accrual/by-day` принимает ровно один день, поэтому период
+        обходится по дням. Ограничение сверху — MAX_ACCRUAL_DAYS, иначе один вызов
+        инструмента превращается в десятки запросов к Ozon.
+
+        Возвращает начисления с указанием источника; `page`/`page_size` больше не
+        применяются на стороне Ozon и используются как срез уже собранного списка.
         """
-        body: dict[str, Any] = {
-            "filter": {
-                "date": {"from": date_from, "to": date_to},
-            },
+        days = self._accrual_days(date_from, date_to)
+        accruals: list[dict] = []
+        for day in days:
+            accruals.extend(await self._accruals_for_day(day))
+
+        start = max(0, (page - 1) * page_size)
+        page_items = accruals[start:start + page_size]
+        return {
+            "source": "/v1/finance/accrual/by-day",
+            "note": ("Данные собраны по дням: /v3/finance/transaction/list отключён Ozon. "
+                     f"Обработано дней: {len(days)}, начислений всего: {len(accruals)}."),
+            "period": {"from": date_from, "to": date_to},
+            "total": len(accruals),
             "page": page,
             "page_size": page_size,
+            "accruals": page_items,
         }
-        if operation_type:
-            body["filter"]["operation_type"] = operation_type
-        return await self._post("/v3/finance/transaction/list", body)
 
-    async def finance_transaction_totals(
-        self, date_from: str, date_to: str
-    ) -> dict:
-        """POST /v3/finance/transaction/totals — итоги финансов за период.
+    async def finance_transaction_totals(self, date_from: str, date_to: str) -> dict:
+        """Итоги за период — сумма начислений по дням.
 
-        Тело: {date, posting_number, transaction_type} (НЕ filter!).
+        `/v3/finance/transaction/totals` отключён Ozon. Здесь суммы считаются из
+        `/v1/finance/accrual/by-day`: итог, разбивка по категориям начислений
+        (ITEM / POSTING / NON_ITEM) и по type_id услуги. Разнесение доставки и
+        возвратов идёт по type_id услуги — Ozon относит логистику возврата
+        (type_id 32) к доставке, а не к возвратам.
         """
-        return await self._post(
-            "/v3/finance/transaction/totals",
-            {"date": {"from": date_from, "to": date_to},
-             "posting_number": "", "transaction_type": "all"},
-        )
+        days = self._accrual_days(date_from, date_to)
+        total = 0.0
+        by_category: dict[str, float] = {}
+        by_service: dict[str, float] = {}
+        returns_total = 0.0
+        count = 0
+
+        for day in days:
+            for accrual in await self._accruals_for_day(day):
+                count += 1
+                amount = self._money(accrual.get("total_amount"))
+                total += amount
+                category = accrual.get("accrued_category") or "UNKNOWN"
+                by_category[category] = round(by_category.get(category, 0.0) + amount, 2)
+                for type_id, service_amount in self._services(accrual):
+                    key = str(type_id)
+                    by_service[key] = round(by_service.get(key, 0.0) + service_amount, 2)
+                    if type_id in self.RETURN_SERVICE_TYPE_IDS:
+                        returns_total = round(returns_total + service_amount, 2)
+
+        return {
+            "source": "/v1/finance/accrual/by-day",
+            "note": ("Итоги пересчитаны из начислений: /v3/finance/transaction/totals "
+                     "отключён Ozon. Разнесение по type_id услуги, а не по типу операции."),
+            "period": {"from": date_from, "to": date_to},
+            "days": len(days),
+            "accruals": count,
+            "total": round(total, 2),
+            "by_category": by_category,
+            "by_service_type_id": by_service,
+            "returns_and_cancellations": returns_total,
+        }
+
+    # Больше дней за один вызов — это десятки запросов к Ozon и минуты ожидания.
+    MAX_ACCRUAL_DAYS = 31
+
+    @staticmethod
+    def _money(value: Any) -> float:
+        """Суммы приходят как {"amount": "-21.75", "currency": "RUB"}."""
+        if not isinstance(value, dict):
+            return 0.0
+        try:
+            return float(value.get("amount") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @classmethod
+    def _services(cls, accrual: dict) -> list[tuple[int, float]]:
+        """Услуги начисления: (type_id, сумма) из отправлений и товарных сборов."""
+        found: list[tuple[int, float]] = []
+        posting = accrual.get("posting") or {}
+        for product in posting.get("products") or []:
+            delivery = product.get("delivery") or {}
+            for service in delivery.get("services") or []:
+                found.append((service.get("type_id"), cls._money(service.get("accrued"))))
+        item_fees = accrual.get("item_fees") or {}
+        for entry in item_fees.get("fees") or []:
+            for fee in entry.get("fees") or []:
+                found.append((fee.get("type_id"), cls._money(fee.get("accrued"))))
+        return [(t, a) for t, a in found if isinstance(t, int)]
+
+    @classmethod
+    def _accrual_days(cls, date_from: str, date_to: str) -> list[str]:
+        """Список дат периода, не длиннее MAX_ACCRUAL_DAYS."""
+        import datetime
+
+        start = datetime.date.fromisoformat(date_from[:10])
+        end = datetime.date.fromisoformat(date_to[:10])
+        if end < start:
+            start, end = end, start
+        span = min((end - start).days, cls.MAX_ACCRUAL_DAYS - 1)
+        return [str(start + datetime.timedelta(days=i)) for i in range(span + 1)]
+
+    async def _accruals_for_day(self, day: str) -> list[dict]:
+        """Все начисления за день с учётом пагинации по last_id."""
+        collected: list[dict] = []
+        last_id = ""
+        for _ in range(50):  # предохранитель от бесконечной пагинации
+            page = await self.finance_accrual_by_day(day, last_id=last_id)
+            batch = page.get("accruals") or []
+            collected.extend(batch)
+            last_id = page.get("last_id") or ""
+            if not last_id or not batch:
+                break
+        return collected
 
     async def finance_realization(self, month: int, year: int) -> dict:
         """POST /v2/finance/realization — отчёт о реализации за месяц (v1 удалён)."""
@@ -245,9 +347,15 @@ class OzonSellerClient:
         """POST /v1/finance/mutual-settlement — отчёт о взаиморасчётах (date: YYYY-MM)."""
         return await self._post("/v1/finance/mutual-settlement", {"date": date})
 
-    async def finance_accrual_by_day(self, date: str) -> dict:
-        """POST /v1/finance/accrual/by-day — начисления по дням (date: YYYY-MM-DD)."""
-        return await self._post("/v1/finance/accrual/by-day", {"date": date})
+    async def finance_accrual_by_day(self, date: str, last_id: str = "") -> dict:
+        """POST /v1/finance/accrual/by-day — начисления за один день (YYYY-MM-DD).
+
+        Ровно один день за вызов; следующая страница берётся по `last_id` из ответа.
+        """
+        body: dict[str, Any] = {"date": date}
+        if last_id:
+            body["last_id"] = last_id
+        return await self._post("/v1/finance/accrual/by-day", body)
 
     async def finance_products_buyout(self, date_from: str, date_to: str) -> dict:
         """POST /v1/finance/products/buyout — выкупленные товары за период."""
@@ -603,8 +711,39 @@ class OzonSellerClient:
         return await self._post("/v2/posting/fbs/package-label", {"posting_number": posting_numbers})
 
     async def posting_fbs_act_create(self, containers_count: int = 1) -> dict:
-        """POST /v2/posting/fbs/act/create — создать акт приёма-передачи."""
+        """POST /v2/posting/fbs/act/create — создать акт приёма-передачи.
+
+        ⚠️ Ozon отключает 07.09.2026. Замена — carriage_create + carriage_approve.
+        """
         return await self._post("/v2/posting/fbs/act/create", {"containers_count": containers_count})
+
+    async def carriage_create(self, delivery_method_id: int, departure_date: str = "",
+                              containers_count: int = 1) -> dict:
+        """POST /v1/carriage/create — создать отгрузку (замена акта приёма-передачи).
+
+        ⚠️ У этой ручки нет обязательных полей на стороне Ozon: пустое тело `{}` —
+        валидный запрос, по которому Ozon сам подберёт отправления и создаст
+        настоящую отгрузку. Поэтому delivery_method_id обязателен здесь: случайный
+        вызов без параметров не должен создавать отгрузку по всему кабинету.
+
+        Отгрузка создаётся в статусе `new`; в `formed` её переводит carriage_approve.
+        """
+        if not delivery_method_id:
+            raise ValueError(
+                "carriage_create: укажите delivery_method_id. Без него Ozon создаст "
+                "отгрузку по всем доступным отправлениям — это необратимо."
+            )
+        body: dict[str, Any] = {
+            "delivery_method_id": delivery_method_id,
+            "containers_count": containers_count,
+        }
+        if departure_date:
+            body["departure_date"] = departure_date
+        return await self._post("/v1/carriage/create", body)
+
+    async def carriage_approve(self, carriage_id: int) -> dict:
+        """POST /v1/carriage/approve — подтвердить отгрузку, статус new → formed."""
+        return await self._post("/v1/carriage/approve", {"carriage_id": carriage_id})
 
     async def posting_fbs_act_check_status(self, id: int) -> dict:
         """POST /v2/posting/fbs/act/check-status — статус формирования акта."""

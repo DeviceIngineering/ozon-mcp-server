@@ -39,7 +39,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.4.4")
+app = Server("ozon-mcp-server", version="2.4.5")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -279,7 +279,8 @@ TOOLS = [
 
     # === P0: ФИНАНСЫ ===
     _tool("ozon_finance_transactions",
-          "[P0] Financial transactions: commissions, logistics, storage, returns — every cost per sale (транзакции, расходы).",
+          "[P0] Financial operations: commissions, logistics, storage, returns (транзакции, расходы). "
+          "Built from daily accruals — Ozon retired the period endpoint; max 31 days per call.",
           {"date_from": {"type": "string", "description": "YYYY-MM-DDT00:00:00Z"},
            "date_to": {"type": "string"},
            "page": {"type": "integer", "default": 1},
@@ -287,7 +288,8 @@ TOOLS = [
            "operation_type": {"type": "array", "items": {"type": "string"}, "description": "type filter"}},
           ["date_from", "date_to"]),
     _tool("ozon_finance_totals",
-          "[P0] Period totals: commissions, logistics, storage (итоги финансов).",
+          "[P0] Period totals by accrual category and service type_id (итоги финансов). "
+          "Recomputed from daily accruals — Ozon retired the totals endpoint; max 31 days per call.",
           {"date_from": {"type": "string"}, "date_to": {"type": "string"}},
           ["date_from", "date_to"]),
     _tool("ozon_finance_realization",
@@ -595,8 +597,21 @@ TOOLS = [
     _tool("ozon_order_fbs_cancel_reasons",
           "FBS cancellation reasons (причины отмены)."),
     _tool("ozon_order_fbs_act_create",
-          "Create an FBS handover act (акт приёма-передачи).",
+          "Create an FBS handover act (акт приёма-передачи). DEPRECATED: Ozon switches this "
+          "endpoint off on 2026-09-07 — use ozon_carriage_create plus ozon_carriage_approve.",
           {"containers_count": {"type": "integer", "default": 1}}),
+    _tool("ozon_carriage_create",
+          "Create an FBS carriage — the replacement for the handover act (создать отгрузку). "
+          "delivery_method_id is required here on purpose: Ozon accepts an empty body and would "
+          "pick postings itself, creating a real carriage.",
+          {"delivery_method_id": {"type": "integer", "description": "from ozon_delivery_methods"},
+           "departure_date": {"type": "string", "description": "RFC3339"},
+           "containers_count": {"type": "integer", "default": 1}},
+          ["delivery_method_id"]),
+    _tool("ozon_carriage_approve",
+          "Approve a carriage, status new to formed (подтвердить отгрузку).",
+          {"carriage_id": {"type": "integer"}},
+          ["carriage_id"]),
     _tool("ozon_order_fbs_act_status",
           "Handover act generation status (статус акта).",
           {"id": {"type": "integer"}},
@@ -1258,6 +1273,13 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await s.posting_fbs_cancel_reasons())
     if name == "ozon_order_fbs_act_create":
         return _json(await s.posting_fbs_act_create(arguments.get("containers_count", 1)))
+    if name == "ozon_carriage_create":
+        return _json(await s.carriage_create(
+            arguments["delivery_method_id"],
+            departure_date=arguments.get("departure_date", ""),
+            containers_count=arguments.get("containers_count", 1)))
+    if name == "ozon_carriage_approve":
+        return _json(await s.carriage_approve(arguments["carriage_id"]))
     if name == "ozon_order_fbs_act_status":
         return _json(await s.posting_fbs_act_check_status(arguments["id"]))
     if name == "ozon_order_fbs_act_pdf":

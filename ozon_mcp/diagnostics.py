@@ -186,6 +186,36 @@ async def probe_performance(client_id: str, client_secret: str) -> dict[str, Any
 
 # ─── Полная самодиагностика магазина ─────────────────────────
 
+async def key_expiry(seller) -> dict[str, Any]:
+    """Срок действия ключа Seller API — POST /v1/roles отдаёт `expires_at`.
+
+    Ключи Ozon стали срочными после ротации 13.02.2026 (180 дней), и срок теперь
+    виден заранее. Раньше об истечении узнавали по 401 в момент работы.
+    """
+    try:
+        data = await seller._post("/v1/roles", {})
+    except Exception as e:  # ручка доступна не всем ролям — это не повод падать
+        return {"ok": False, "error": f"{type(e).__name__}: {str(e)[:120]}"}
+
+    raw = data.get("expires_at") or ""
+    if not raw:
+        return {"ok": False, "error": "в ответе /v1/roles нет expires_at"}
+
+    from datetime import datetime, timezone
+    try:
+        expires = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return {"ok": False, "error": f"нераспознанный формат expires_at: {raw[:40]}"}
+
+    days_left = (expires - datetime.now(timezone.utc)).total_seconds() / 86400
+    return {
+        "ok": True,
+        "expires_at": raw,
+        "days_left": round(days_left, 1),
+        "roles": [r.get("name") for r in (data.get("roles") or []) if isinstance(r, dict)],
+    }
+
+
 async def full_diagnostics(shop_id: str, shop_name: str, keys: dict, seller) -> dict[str, Any]:
     """Полная диагностика: хосты + пробы Seller + токен Performance."""
     keys_info = {
@@ -194,10 +224,11 @@ async def full_diagnostics(shop_id: str, shop_name: str, keys: dict, seller) -> 
         "client_id": keys.get("ozon_client_id", ""),
     }
 
-    hosts, probes, perf = await asyncio.gather(
+    hosts, probes, perf, expiry = await asyncio.gather(
         check_hosts(),
         run_probes(seller),
         probe_performance(keys.get("ozon_perf_client_id", ""), keys.get("ozon_perf_client_secret", "")),
+        key_expiry(seller),
     )
 
     host_fail = [h for h in hosts if not h["ok"]]
@@ -225,6 +256,15 @@ async def full_diagnostics(shop_id: str, shop_name: str, keys: dict, seller) -> 
     if len(auth_fails) >= 3:
         warnings.insert(0, "⛔ КЛЮЧ SELLER API ИСТЁК ИЛИ ОТОЗВАН — все запросы падают с 401!")
 
+    # Срок ключа известен заранее — предупреждаем до, а не после падения
+    if expiry.get("ok"):
+        days_left = expiry["days_left"]
+        if days_left <= 0:
+            warnings.insert(0, f"⛔ Ключ Seller API истёк {expiry['expires_at']} — создайте новый в ЛК Ozon")
+        elif days_left <= 30:
+            warnings.append(f"⚠️ Ключ Seller API истекает через {days_left:.0f} дн. "
+                            f"({expiry['expires_at']}) — создайте новый заранее")
+
     healthy = not host_fail and not probe_fail and not perf_fail
 
     return {
@@ -233,7 +273,7 @@ async def full_diagnostics(shop_id: str, shop_name: str, keys: dict, seller) -> 
         "checked_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "healthy": healthy,
         "warnings": warnings,
-        "keys": keys_info,
+        "keys": {**keys_info, "expiry": expiry},
         "hosts": hosts,
         "probes": probes + [perf],
     }

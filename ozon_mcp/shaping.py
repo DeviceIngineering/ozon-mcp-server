@@ -3,9 +3,11 @@
 Зачем: ответы Ozon API рассчитаны на программу, а не на модель с ограниченным
 контекстом. Замер на живом кабинете (сентябрь 2026):
 
-    ozon_category_tree     266 000 токенов  (9 797 узлов дерева целиком)
-    ozon_get_prices         53 000 токенов  (93 % веса — история marketing_actions)
-    ozon_warehouse_list     20 000 токенов  (99 % веса — расписание склада на год)
+    ozon_category_tree      266 000 токенов  (9 797 узлов дерева целиком)
+    ozon_get_prices          53 000 токенов  (93 % веса — история marketing_actions)
+    ozon_warehouse_list      20 000 токенов  (99 % веса — расписание склада на год)
+    ozon_finance_transactions             —  (177 начислений в день, детали услуг
+                                              внутри каждого; период идёт по дням)
 
 Потолок вывода одного вызова у клиента — 25 000 токенов (MAX_MCP_OUTPUT_TOKENS
 в Claude Code), дальше ответ молча обрезается. Поэтому:
@@ -52,6 +54,10 @@ VIEWS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "ozon_search_promo_products": (
         ("products",),
         ("sku", "sourceSku", "title", "bid", "bidPrice", "carrotsStatus", "views", "visibility"),
+    ),
+    "ozon_finance_transactions": (
+        ("accruals",),
+        ("accrual_id", "date", "total_amount", "unit_number", "accrued_category"),
     ),
     "ozon_actions_list": (
         ("result",),

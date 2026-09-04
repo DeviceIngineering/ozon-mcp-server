@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 Русская версия истории изменений живёт в README.ru.md и в заметках проекта.
 
+## [2.4.5] — 2026-09-04
+
+### Fixed
+- Finance moved off the endpoints Ozon retired. `/v3/finance/transaction/list` and
+  `/totals` were announced for 2026-09-08 but already answer 400, so
+  `ozon_finance_transactions` and `ozon_finance_totals` are now built from
+  `/v1/finance/accrual/by-day`. That endpoint takes exactly one day per call, so the
+  period is walked day by day (31 days max per call) with `last_id` pagination.
+  Totals are recomputed by accrual category and service `type_id`; returns are
+  type_id 45 and 59, while return logistics (type_id 32) belongs to delivery —
+  Ozon splits by service, not by operation type.
+- `/v2/posting/fbs/act/create` is switched off on 2026-09-07. Added
+  `ozon_carriage_create` and `ozon_carriage_approve` as the replacement. The new
+  endpoint accepts an empty body and would create a real carriage over every
+  available posting, so `delivery_method_id` is required here even though Ozon
+  does not require it.
+
+### Added
+- Key expiry in diagnostics: `POST /v1/roles` returns `expires_at`, so an expiring
+  Seller API key is now reported up to 30 days ahead instead of surfacing as a 401
+  in the middle of work. Verified on a live account: 21 days left.
+- `compact` preset for `ozon_finance_transactions` — a single day is 177 accruals,
+  52 134 characters; the preset cuts it to 15 934.
+
 ## [2.4.4] — 2026-09-04
 
 ### Changed
@@ -99,6 +123,7 @@ All notable changes to this project are documented here. The format follows
 
 See the git history and GitHub releases.
 
+[2.4.5]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.5
 [2.4.4]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.4
 [2.4.3]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.3
 [2.4.2]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.2
