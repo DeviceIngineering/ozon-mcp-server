@@ -559,6 +559,25 @@ IP, but Ozon and Wildberries count limits on their own side — they are differe
 marketplaces. The cap on the number of seller accounts described in the multi-store
 section applies within each marketplace separately.
 
+## From API access to a working repricer
+
+This server gives a model access to the seller account. Deciding *what* the price
+should be is a separate job, and [**ozon-wildberries-repricer**](https://github.com/DeviceIngineering/ozon-wildberries-repricer)
+does it: it holds a reference price, computes a break-even floor from each
+marketplace's real fees, pulls products out of promotions that would push them
+under cost, and can search for a better price by running a controlled experiment
+on live sales.
+
+It covers Ozon, Wildberries and Yandex Market in one place, and it has its own
+HTTP control plane for LLM agents — with the rails a model needs: a price move
+that would trigger Wildberries quarantine is walked over several runs, prices are
+read back three minutes later because marketplaces report success for changes they
+did not make, and several agents working the same catalogue cannot overwrite each
+other's decisions.
+
+Run it without a marketplace account: `npm run demo` seeds a synthetic catalogue
+and starts the app.
+
 ## Updates and support
 
 Ozon changes its API constantly: endpoints get added, renamed and switched off
