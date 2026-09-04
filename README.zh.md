@@ -10,12 +10,12 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-158-orange.svg)](docs/tools.md)
 [![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
 [![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#实现原理)
 
 在与 AI 助手的对话中直接打理你的 Ozon 店铺：价格、促销、广告、订单、退货、评价、
-财务——基于 Ozon Seller API 与 Performance API 的 151 个工具（Ozon 是俄罗斯最大的
+财务——基于 Ozon Seller API 与 Performance API 的 158 个工具（Ozon 是俄罗斯最大的
 电商平台；Seller API 负责商品与经营，Performance API 负责付费广告）。
 专为**经营多家店铺**的卖家设计：每次调用都带 `shop_id`，API 密钥加密保存在你自己的
 服务器上，不会外传。
@@ -25,7 +25,7 @@
 同时也在 Wildberries 上开店？有一套同样的 WB 服务器：
 [wb-mcp-server](https://github.com/DeviceIngineering/wb-mcp-server)。
 
-这是作者自用的生产工具：已经每天使用五个多月，管理约二十个卖家账号，151 个工具。
+这是作者自用的生产工具：已经每天使用五个多月，管理约二十个卖家账号，158 个工具。
 更新在他自己需要时才做，具体含义见[更新与支持](#更新与支持)。
 
 > `docs/` 里各客户端的安装说明目前**只有俄语版**。不过其中的配置都是可直接粘贴的
@@ -302,7 +302,7 @@ Fernet 加密，加密密钥放在 `DATA_DIR/.encryption_key`，界面上密钥�
 返回样本（个人信息在写入磁盘前即被脱敏，样本目录不进仓库），`scripts/measure_corpus.py`
 计算它们的开销。
 
-**工具定义。** 单店铺配置下，151 个工具占 **12 300 tokens**，此前为 18 386：描述压缩成
+**工具定义。** 单店铺配置下，158 个工具占 **12 300 tokens**，此前为 18 386：描述压缩成
 一句话，只有一个店铺时 `shop_id` 不写进 schema（服务器自动补全），空字段不再序列化。
 
 **返回值。** 真正的问题出在少数几个超大响应上：
@@ -366,7 +366,7 @@ Claude Code 不需要这些：它默认开启 tool search，按需加载 schema�
 
 一个 Docker 容器，里面是一个 FastAPI 应用，同时充当 MCP 服务器和网页界面。
 
-- **`ozon_mcp/server.py`**——MCP 服务器本体。`TOOLS` 列表描述全部 151 个工具（名称、
+- **`ozon_mcp/server.py`**——MCP 服务器本体。`TOOLS` 列表描述全部 158 个工具（名称、
   说明、参数的 JSON schema），`call_tool` 处理器把调用路由到对应的 Ozon 客户端方法。
   客户端按 `shop_id` 放在连接池里，因此切换店铺不会重新建连。
 - **`ozon_mcp/client.py`**——两个 HTTP 客户端：`OzonSellerClient`（`Client-Id` /
@@ -458,7 +458,7 @@ ozon-mcp-server/
 ├── DEPLOY.md            # 部署到独立机器、迁移数据
 ├── docs/                # 各客户端接入说明 + 工具清单
 └── ozon_mcp/
-    ├── server.py        # MCP 服务器：151 个工具，多店铺
+    ├── server.py        # MCP 服务器：158 个工具，多店铺
     ├── client.py        # Seller API + Performance API
     ├── app.py           # FastAPI：SSE、网页、鉴权、健康检查循环
     ├── diagnostics.py   # 类别探针、劣化探测

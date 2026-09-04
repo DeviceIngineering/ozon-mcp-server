@@ -1,5 +1,6 @@
 """HTTP-клиенты для Ozon Seller API и Performance API."""
 
+import asyncio
 import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -19,16 +20,37 @@ class OzonSellerClient:
             headers={"Client-Id": client_id, "Api-Key": api_key},
             timeout=30.0,
         )
+        # Справочник видов начислений статичен — грузим один раз на клиента.
+        self._accrual_types_cache: dict | None = None
+
+    # 429 и 5xx — повторяем: с переездом финансов на начисления один вызов
+    # инструмента превратился в десятки запросов по дням, и лимит Ozon стал
+    # достижимым в обычной работе, а не только при нагрузке.
+    _RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+    async def _send(self, method: str, path: str, *, params: dict | None = None,
+                    json_body: Any = None, max_retries: int = 3) -> dict:
+        delay = 1.0
+        for attempt in range(max_retries + 1):
+            r = await self._http.request(method, path, params=params, json=json_body)
+            if r.status_code in self._RETRY_STATUSES and attempt < max_retries:
+                retry_after = r.headers.get("Retry-After", "")
+                try:
+                    wait = float(retry_after) if retry_after else delay
+                except ValueError:
+                    wait = delay
+                await asyncio.sleep(min(wait, 10.0))
+                delay = min(delay * 2, 10.0)
+                continue
+            r.raise_for_status()
+            return r.json() if r.content else {}
+        return {}
 
     async def _post(self, path: str, body: dict | None = None) -> dict:
-        r = await self._http.post(path, json=body or {})
-        r.raise_for_status()
-        return r.json()
+        return await self._send("POST", path, json_body=body or {})
 
     async def _get(self, path: str, params: dict | None = None) -> dict:
-        r = await self._http.get(path, params=params)
-        r.raise_for_status()
-        return r.json()
+        return await self._send("GET", path, params=params)
 
     # ── Акции ──────────────────────────────────────────────
     async def actions_list(self) -> dict:
@@ -253,6 +275,10 @@ class OzonSellerClient:
         возвратов идёт по type_id услуги — Ozon относит логистику возврата
         (type_id 32) к доставке, а не к возвратам.
         """
+        # Справочник берём первым: после обхода дней запросы упираются в лимит Ozon,
+        # и расшифровка type_id молча теряется.
+        names = await self._accrual_type_names()
+
         days = self._accrual_days(date_from, date_to)
         total = 0.0
         by_category: dict[str, float] = {}
@@ -273,6 +299,11 @@ class OzonSellerClient:
                     if type_id in self.RETURN_SERVICE_TYPE_IDS:
                         returns_total = round(returns_total + service_amount, 2)
 
+        by_service_named = {
+            f"{type_id} — {names[int(type_id)]}" if int(type_id) in names else type_id: amount
+            for type_id, amount in by_service.items()
+        }
+
         return {
             "source": "/v1/finance/accrual/by-day",
             "note": ("Итоги пересчитаны из начислений: /v3/finance/transaction/totals "
@@ -282,7 +313,7 @@ class OzonSellerClient:
             "accruals": count,
             "total": round(total, 2),
             "by_category": by_category,
-            "by_service_type_id": by_service,
+            "by_service": by_service_named,
             "returns_and_cancellations": returns_total,
         }
 
@@ -346,6 +377,30 @@ class OzonSellerClient:
     async def finance_mutual_settlement(self, date: str) -> dict:
         """POST /v1/finance/mutual-settlement — отчёт о взаиморасчётах (date: YYYY-MM)."""
         return await self._post("/v1/finance/mutual-settlement", {"date": date})
+
+    async def finance_accrual_types(self) -> dict:
+        """POST /v1/finance/accrual/types — справочник видов начислений.
+
+        Именно он расшифровывает `type_id` в начислениях: 1 — эквайринг,
+        32 — обратная логистика и так далее. Справочник статичен, поэтому
+        кэшируется на время жизни клиента.
+        """
+        if self._accrual_types_cache is None:
+            self._accrual_types_cache = await self._post("/v1/finance/accrual/types", {})
+        return self._accrual_types_cache
+
+    async def _accrual_type_names(self) -> dict[int, str]:
+        """{type_id: человеческое название} — пустой словарь, если справочник недоступен."""
+        try:
+            data = await self.finance_accrual_types()
+        except Exception:
+            return {}
+        names: dict[int, str] = {}
+        for entry in data.get("accrual_types") or []:
+            type_id = entry.get("id")
+            if isinstance(type_id, int):
+                names[type_id] = entry.get("description") or entry.get("name") or ""
+        return names
 
     async def finance_accrual_by_day(self, date: str, last_id: str = "") -> dict:
         """POST /v1/finance/accrual/by-day — начисления за один день (YYYY-MM-DD).
@@ -740,6 +795,36 @@ class OzonSellerClient:
         if departure_date:
             body["departure_date"] = departure_date
         return await self._post("/v1/carriage/create", body)
+
+    async def carriage_delivery_list(self, limit: int = 50, offset: int = 0) -> dict:
+        """POST /v2/carriage/delivery/list — методы доставки и их отгрузки.
+
+        Отсюда берётся delivery_method_id для carriage_create: без него отгрузку
+        создавать нельзя, а больше он нигде не отдаётся.
+        """
+        return await self._post("/v2/carriage/delivery/list", {"limit": limit, "offset": offset})
+
+    async def action_auto_add_products(self, action_id: int, auto_add_date: str,
+                                       limit: int = 50, offset: int = 0) -> dict:
+        """POST /v1/actions/auto-add/products/list — товары, которые Ozon добавит в акцию сам."""
+        return await self._post("/v1/actions/auto-add/products/list", {
+            "action_id": action_id, "auto_add_date": auto_add_date,
+            "limit": limit, "offset": offset,
+        })
+
+    async def action_auto_add_candidates(self, action_id: int, auto_add_date: str,
+                                         limit: int = 50, offset: int = 0) -> dict:
+        """POST /v1/actions/auto-add/products/candidates — кандидаты на автодобавление."""
+        return await self._post("/v1/actions/auto-add/products/candidates", {
+            "action_id": action_id, "auto_add_date": auto_add_date,
+            "limit": limit, "offset": offset,
+        })
+
+    async def action_auto_add_delete(self, action_id: int, product_ids: list[int]) -> dict:
+        """POST /v1/actions/auto-add/products/delete — убрать товары из автодобавления."""
+        return await self._post("/v1/actions/auto-add/products/delete", {
+            "action_id": action_id, "product_id": product_ids,
+        })
 
     async def carriage_approve(self, carriage_id: int) -> dict:
         """POST /v1/carriage/approve — подтвердить отгрузку, статус new → formed."""

@@ -10,12 +10,12 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-158-orange.svg)](docs/tools.md)
 [![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
 [![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#how-it-works)
 
 Run your Ozon stores straight from a chat with an AI assistant: prices, promos,
-advertising, orders, returns, reviews, finances — 151 tools on top of the Ozon
+advertising, orders, returns, reviews, finances — 158 tools on top of the Ozon
 Seller API and Performance API (Ozon is Russia's largest marketplace; the Seller
 API covers catalogue and operations, the Performance API covers paid ads).
 Built for sellers who run **more than one store**: every call takes a `shop_id`,
@@ -28,7 +28,7 @@ Selling on Wildberries too? There is the same server for WB —
 [wb-mcp-server](https://github.com/DeviceIngineering/wb-mcp-server).
 
 This is the author's own working tool: more than five months of daily use, around
-twenty seller accounts, 151 tools. It gets updated when he needs it updated — see
+twenty seller accounts, 158 tools. It gets updated when he needs it updated — see
 [Updates and support](#updates-and-support) for what that means for you.
 
 > The per-client installation guides in `docs/` are currently **Russian only**.
@@ -333,7 +333,7 @@ than estimated — `scripts/collect_corpus.py` takes a snapshot of read-only too
 (PII masked before anything is written to disk, the corpus stays out of the repo),
 `scripts/measure_corpus.py` reports what it costs.
 
-**Definitions.** 151 tools cost **12 300 tokens** with a single store configured,
+**Definitions.** 158 tools cost **12 300 tokens** with a single store configured,
 down from 18 386: one-sentence descriptions, `shop_id` dropped from the schemas when
 only one store exists, no empty schema fields.
 
@@ -414,7 +414,7 @@ A single Docker container running a FastAPI application that is both the MCP
 server and the web UI.
 
 - **`ozon_mcp/server.py`** — the MCP server itself. The `TOOLS` list describes all
-  151 tools (name, description, JSON schema for the arguments) and the `call_tool`
+  158 tools (name, description, JSON schema for the arguments) and the `call_tool`
   handler routes each call to the right Ozon client method. Clients are pooled per
   `shop_id`, so switching stores reconnects nothing.
 - **`ozon_mcp/client.py`** — two HTTP clients: `OzonSellerClient` (`Client-Id` /
@@ -458,7 +458,7 @@ Non-obvious things:
 | `MCP_AUTH_TOKEN` | empty | Bearer token for `/sse`. Empty = no authentication |
 | `HEALTH_CHECK_INTERVAL_MIN` | `30` | background diagnostics interval, `0` disables it |
 | `PORT` | `8000` | HTTP server port |
-| `OZON_TOOLSETS` | empty | comma-separated tool profiles: `pricing`, `ads`, `catalog`, `orders`, `analytics`, `feedback`, `finance`; empty means all 151 |
+| `OZON_TOOLSETS` | empty | comma-separated tool profiles: `pricing`, `ads`, `catalog`, `orders`, `analytics`, `feedback`, `finance`; empty means all 158 |
 | `OZON_MAX_RESPONSE_CHARS` | `60000` | size-guard threshold for a single response |
 | `DATA_DIR` | `/data` | directory holding `shops.json`, `stats.db`, `.encryption_key` |
 | `OZON_CLIENT_ID`, `OZON_API_KEY` | empty | Seller API keys for the `default` store, if you'd rather not use the UI |
@@ -520,7 +520,7 @@ ozon-mcp-server/
 ├── DEPLOY.md            # deploying to a dedicated machine, moving data
 ├── docs/                # client connection guides + tool reference
 └── ozon_mcp/
-    ├── server.py        # MCP server: 151 tools, multi-store
+    ├── server.py        # MCP server: 158 tools, multi-store
     ├── client.py        # Seller API + Performance API
     ├── app.py           # FastAPI: SSE, web, auth, health loop
     ├── diagnostics.py   # category probes, degradation detector

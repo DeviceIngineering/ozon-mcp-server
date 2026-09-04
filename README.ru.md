@@ -10,12 +10,12 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![MCP tools](https://img.shields.io/badge/MCP%20tools-151-orange.svg)](docs/tools.md)
+[![MCP tools](https://img.shields.io/badge/MCP%20tools-158-orange.svg)](docs/tools.md)
 [![Transport](https://img.shields.io/badge/transport-stdio%20%7C%20SSE-lightgrey.svg)](#как-это-устроено)
 [![PyPI](https://img.shields.io/pypi/v/ozon-mcp-server.svg)](https://pypi.org/project/ozon-mcp-server/)
 
 Управляйте магазинами Ozon прямо из чата с ИИ-ассистентом: цены, акции, реклама,
-заказы, возвраты, отзывы, финансы — 151 инструмент поверх Ozon Seller API и
+заказы, возвраты, отзывы, финансы — 158 инструментов поверх Ozon Seller API и
 Performance API.
 Для продавцов, у которых **несколько магазинов**: каждый вызов принимает `shop_id`,
 ключи хранятся зашифрованными на вашем сервере, наружу ничего не уходит.
@@ -27,7 +27,7 @@ Performance API.
 [wb-mcp-server](https://github.com/DeviceIngineering/wb-mcp-server).
 
 Это личный рабочий инструмент автора: больше пяти месяцев ежедневной работы,
-порядка двадцати кабинетов, 151 инструмент. Обновляется он по мере собственной
+порядка двадцати кабинетов, 158 инструментов. Обновляется он по мере собственной
 необходимости автора — подробности в разделе
 [«Обновления и поддержка»](#обновления-и-поддержка).
 
@@ -315,7 +315,7 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
 ## Расход контекста
 
 Определения инструментов клиент получает один раз за сессию — и платит за них
-токенами в каждом запросе. 151 инструмент Ozon весит **12 344 токена** против
+токенами в каждом запросе. 158 инструментов Ozon весит **12 344 токена** против
 18 386 до версии 2.2.0. Что для этого сделано:
 
 - **Компактный JSON в ответах.** Сериализация без отступов: типичный ответ на
@@ -362,7 +362,7 @@ claude mcp add --transport sse ozon http://localhost:8000/sse \
 Заметки приходят отдельными блоками ответа, а не полем внутри JSON: у части ручек
 Ozon верхний уровень — массив, и обёртка сломала бы привычные пути к данным.
 
-**Профили инструментов.** Клиенту без tool search каталог из 151 инструмента
+**Профили инструментов.** Клиенту без tool search каталог из 158 инструментов
 обходится в 12 700 токенов на каждый запрос. `OZON_TOOLSETS` оставляет только нужные
 профили — они нарезаны по рабочим задачам, а не по разделам документации Ozon, потому
 что аудит акций требует одновременно акций, цен и карантина:
@@ -441,7 +441,7 @@ Ozon верхний уровень — массив, и обёртка слом�
 | `MCP_AUTH_TOKEN` | пусто | Bearer-токен для `/sse`. Пусто = без авторизации |
 | `HEALTH_CHECK_INTERVAL_MIN` | `30` | интервал фоновой диагностики, `0` — выключить |
 | `PORT` | `8000` | порт HTTP-сервера |
-| `OZON_TOOLSETS` | пусто | профили инструментов через запятую: `pricing`, `ads`, `catalog`, `orders`, `analytics`, `feedback`, `finance`; пусто — все 151 |
+| `OZON_TOOLSETS` | пусто | профили инструментов через запятую: `pricing`, `ads`, `catalog`, `orders`, `analytics`, `feedback`, `finance`; пусто — все 158 |
 | `OZON_MAX_RESPONSE_CHARS` | `60000` | порог предохранителя размера ответа |
 | `DATA_DIR` | `/data` | каталог с `shops.json`, `stats.db`, `.encryption_key` |
 | `OZON_CLIENT_ID`, `OZON_API_KEY` | пусто | ключи Seller API для магазина `default`, если не хочется вводить их в UI |
@@ -497,7 +497,7 @@ ozon-mcp-server/
 ├── DEPLOY.md            # деплой на отдельную машину, перенос данных
 ├── docs/                # подключение клиентов + справочник инструментов
 └── ozon_mcp/
-    ├── server.py        # MCP-сервер: 151 инструмент, мульти-магазин
+    ├── server.py        # MCP-сервер: 158 инструментов, мульти-магазин
     ├── client.py        # Seller API + Performance API
     ├── app.py           # FastAPI: SSE, веб, авторизация, health-loop
     ├── diagnostics.py   # пробы категорий, детектор деградаций

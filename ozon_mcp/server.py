@@ -39,7 +39,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.4.5")
+app = Server("ozon-mcp-server", version="2.5.0")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -600,6 +600,28 @@ TOOLS = [
           "Create an FBS handover act (акт приёма-передачи). DEPRECATED: Ozon switches this "
           "endpoint off on 2026-09-07 — use ozon_carriage_create plus ozon_carriage_approve.",
           {"containers_count": {"type": "integer", "default": 1}}),
+    _tool("ozon_finance_accrual_types",
+          "Accrual type reference: what each type_id in the finance tools means (справочник начислений).")
+,
+    _tool("ozon_carriage_delivery_list",
+          "Delivery methods and their carriages (методы доставки, отгрузки). Source of "
+          "delivery_method_id for ozon_carriage_create.",
+          {"limit": {"type": "integer", "default": 50}, "offset": {"type": "integer", "default": 0}}),
+    _tool("ozon_action_auto_add_products",
+          "[P0] Goods Ozon will add to a promotion by itself on a given date (автодобавление в акцию).",
+          {"action_id": {"type": "integer", "description": "from ozon_actions_list"},
+           "auto_add_date": {"type": "string", "description": "YYYY-MM-DD"},
+           "limit": {"type": "integer", "default": 50}, "offset": {"type": "integer", "default": 0}},
+          ["action_id", "auto_add_date"]),
+    _tool("ozon_action_auto_add_candidates",
+          "[P0] Candidates for automatic addition to a promotion (кандидаты на автодобавление).",
+          {"action_id": {"type": "integer"}, "auto_add_date": {"type": "string", "description": "YYYY-MM-DD"},
+           "limit": {"type": "integer", "default": 50}, "offset": {"type": "integer", "default": 0}},
+          ["action_id", "auto_add_date"]),
+    _tool("ozon_action_auto_add_delete",
+          "[P0] Remove goods from automatic addition to a promotion (убрать из автодобавления).",
+          {"action_id": {"type": "integer"}, "product_ids": {"type": "array", "items": {"type": "integer"}}},
+          ["action_id", "product_ids"]),
     _tool("ozon_carriage_create",
           "Create an FBS carriage — the replacement for the handover act (создать отгрузку). "
           "delivery_method_id is required here on purpose: Ozon accepts an empty body and would "
@@ -1273,6 +1295,22 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await s.posting_fbs_cancel_reasons())
     if name == "ozon_order_fbs_act_create":
         return _json(await s.posting_fbs_act_create(arguments.get("containers_count", 1)))
+    if name == "ozon_finance_accrual_types":
+        return _json(await s.finance_accrual_types())
+    if name == "ozon_carriage_delivery_list":
+        return _json(await s.carriage_delivery_list(
+            arguments.get("limit", 50), arguments.get("offset", 0)))
+    if name == "ozon_action_auto_add_products":
+        return _json(await s.action_auto_add_products(
+            arguments["action_id"], arguments["auto_add_date"],
+            arguments.get("limit", 50), arguments.get("offset", 0)))
+    if name == "ozon_action_auto_add_candidates":
+        return _json(await s.action_auto_add_candidates(
+            arguments["action_id"], arguments["auto_add_date"],
+            arguments.get("limit", 50), arguments.get("offset", 0)))
+    if name == "ozon_action_auto_add_delete":
+        return _json(await s.action_auto_add_delete(
+            arguments["action_id"], arguments["product_ids"]))
     if name == "ozon_carriage_create":
         return _json(await s.carriage_create(
             arguments["delivery_method_id"],

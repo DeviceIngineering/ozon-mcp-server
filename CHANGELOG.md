@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 Русская версия истории изменений живёт в README.ru.md и в заметках проекта.
 
+## [2.5.0] — 2026-09-04
+
+### Added
+- `ozon_finance_accrual_types` — the reference that explains what each `type_id` in the
+  finance data means, and `ozon_finance_totals` now uses it: instead of «32: -9526» the
+  answer reads «32 — Логистика: -9526». 124 service types, cached per client.
+- `ozon_carriage_delivery_list` — delivery methods and their carriages. This is where
+  `delivery_method_id` for `ozon_carriage_create` comes from; without it the new
+  carriage flow was unusable.
+- `ozon_action_auto_add_products`, `ozon_action_auto_add_candidates` and
+  `ozon_action_auto_add_delete` — Ozon adds goods to promotions on its own, and these
+  show what it plans to add and let you take goods out. 151 tools → 158.
+
+### Fixed
+- Retries on 429 and 5xx in the Seller client. With finance walking the period day by
+  day, one tool call is now dozens of requests, and Ozon's rate limit became reachable
+  in normal work — the accrual type reference was silently lost to a 429 before this.
+
+### Notes
+- Checked against the method list the API key actually exposes (`/v1/roles`, 540
+  methods): `/v1/returns/rfbs/*` and `/v1/analytics/average-delivery-time` are listed
+  but answer 404, so the existing v2 return endpoints stay.
+
 ## [2.4.5] — 2026-09-04
 
 ### Fixed
@@ -123,6 +146,7 @@ All notable changes to this project are documented here. The format follows
 
 See the git history and GitHub releases.
 
+[2.5.0]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.5.0
 [2.4.5]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.5
 [2.4.4]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.4
 [2.4.3]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.3
