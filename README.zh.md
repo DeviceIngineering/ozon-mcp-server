@@ -519,6 +519,8 @@ Ozon 一直在改 API：接口会新增、改名、下线（上面的限制一�
     这个 PR 不只修好了初始化，还把「没有数据」和「没有劣化」区分开，
     并补充了用真实 MCP 客户端跑 stdio 的集成测试。已包含在 **v2.1.2** 中。
 
+版本历史：[CHANGELOG.md](CHANGELOG.md)。
+
 ## 许可证
 
 MIT——见 [LICENSE](LICENSE)。

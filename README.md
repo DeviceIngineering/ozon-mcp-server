@@ -590,6 +590,8 @@ Issues and pull requests are welcome too, and they do get read.
     PR does not just fix the wiring: it also separates "no data" from "no degradations"
     and adds an integration test over stdio with a real MCP client. Shipped in **v2.1.2**.
 
+Version history: [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
