@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 Русская версия истории изменений живёт в README.ru.md и в заметках проекта.
 
+## [2.4.4] — 2026-09-04
+
+### Changed
+- Short descriptions now say what the long ones already did: the GitHub repository
+  description, the PyPI summary and `server.json` for the MCP Registry mention that
+  response sizes are measured on a live account and trimmed (476k → 64k tokens). Those
+  three strings are what directories, GitHub search and link previews actually show —
+  the README sections were invisible to all of them.
+
 ## [2.4.3] — 2026-09-04
 
 ### Fixed
@@ -90,6 +99,7 @@ All notable changes to this project are documented here. The format follows
 
 See the git history and GitHub releases.
 
+[2.4.4]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.4
 [2.4.3]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.3
 [2.4.2]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.2
 [2.4.1]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.1
