@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 Русская версия истории изменений живёт в README.ru.md и в заметках проекта.
 
+## [2.4.3] — 2026-09-04
+
+### Fixed
+- Docker build broke again in 2.4.2: `README.md` is excluded by `.dockerignore`, and
+  since 2.4.2 that is exactly the file `pyproject.toml` points `readme` at. The CI
+  added in 2.4.1 caught it on the first run — which is what it was added for.
+
 ## [2.4.2] — 2026-09-04
 
 ### Changed
@@ -83,6 +90,7 @@ All notable changes to this project are documented here. The format follows
 
 See the git history and GitHub releases.
 
+[2.4.3]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.3
 [2.4.2]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.2
 [2.4.1]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.1
 [2.4.0]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.0
