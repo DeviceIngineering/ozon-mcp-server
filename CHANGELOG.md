@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 Русская версия истории изменений живёт в README.ru.md и в заметках проекта.
 
+## [2.5.2] — 2026-09-05
+
+### Fixed
+- Same registry limit as the Wildberries twin: `server.json` description was 143
+  characters against a cap of 100, so every MCP Registry publish returned 422.
+  Shortened and covered by a test.
+
 ## [2.5.1] — 2026-09-05
 
 ### Fixed
@@ -159,6 +166,7 @@ All notable changes to this project are documented here. The format follows
 
 See the git history and GitHub releases.
 
+[2.5.2]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.5.2
 [2.5.1]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.5.1
 [2.5.0]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.5.0
 [2.4.5]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.5

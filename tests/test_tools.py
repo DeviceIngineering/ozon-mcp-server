@@ -53,3 +53,16 @@ def test_limit_defaults_are_modest():
         and (t.inputSchema["properties"]["limit"].get("default") or 0) > 500
     ]
     assert not too_big, f"слишком крупный дефолтный limit: {too_big}"
+
+
+def test_registry_description_fits_the_limit():
+    """MCP Registry отклоняет server.json с description длиннее 100 символов.
+
+    Публикация падала с 422 именно на этом: короткое описание легко перерастает
+    лимит, когда в него добавляют цифры.
+    """
+    import json
+    import pathlib
+
+    manifest = json.loads((pathlib.Path(__file__).resolve().parent.parent / "server.json").read_text())
+    assert len(manifest["description"]) <= 100, len(manifest["description"])
