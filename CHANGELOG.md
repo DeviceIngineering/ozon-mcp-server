@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 Русская версия истории изменений живёт в README.ru.md и в заметках проекта.
 
+## [2.5.1] — 2026-09-05
+
+### Fixed
+- `commission_ratio` in accruals arrives as a leaked protobuf wrapper —
+  `value:"0.420000"` instead of `0.42` — and a model reads that as text. Numbers in
+  that shape are now unwrapped when accruals are read (issue #6).
+
+### Removed
+- `ozon_product_geo_restrictions` and `ozon_order_fbs_timeslot`: both endpoints are
+  gone. Verified without performing anything — a body that fails type validation
+  returns 404 «page not found», exactly like a made-up path, while a live path
+  answers differently. 158 tools → 156.
+
 ## [2.5.0] — 2026-09-04
 
 ### Added
@@ -146,6 +159,7 @@ All notable changes to this project are documented here. The format follows
 
 See the git history and GitHub releases.
 
+[2.5.1]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.5.1
 [2.5.0]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.5.0
 [2.4.5]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.5
 [2.4.4]: https://github.com/DeviceIngineering/ozon-mcp-server/releases/tag/v2.4.4

@@ -1,6 +1,7 @@
 """HTTP-клиенты для Ozon Seller API и Performance API."""
 
 import asyncio
+import re
 import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -402,15 +403,39 @@ class OzonSellerClient:
                 names[type_id] = entry.get("description") or entry.get("name") or ""
         return names
 
+    # В начислениях часть чисел приходит с протёкшей protobuf-обёрткой:
+    # commission_ratio = 'value:"0.420000"' вместо 0.42. Модель такую строку
+    # трактует как текст, поэтому разворачиваем её при чтении.
+    _PROTOBUF_WRAPPED = re.compile(r'^value:"(.*)"$')
+
+    @classmethod
+    def _unwrap_protobuf(cls, node: Any) -> Any:
+        """Развернуть 'value:"0.42"' в 0.42; остальное вернуть как есть."""
+        if isinstance(node, dict):
+            return {k: cls._unwrap_protobuf(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [cls._unwrap_protobuf(x) for x in node]
+        if isinstance(node, str):
+            found = cls._PROTOBUF_WRAPPED.match(node)
+            if not found:
+                return node
+            inner = found.group(1)
+            try:
+                return float(inner)
+            except ValueError:
+                return inner
+        return node
+
     async def finance_accrual_by_day(self, date: str, last_id: str = "") -> dict:
         """POST /v1/finance/accrual/by-day — начисления за один день (YYYY-MM-DD).
 
         Ровно один день за вызов; следующая страница берётся по `last_id` из ответа.
+        Числа в protobuf-обёртке разворачиваются — см. _unwrap_protobuf.
         """
         body: dict[str, Any] = {"date": date}
         if last_id:
             body["last_id"] = last_id
-        return await self._post("/v1/finance/accrual/by-day", body)
+        return self._unwrap_protobuf(await self._post("/v1/finance/accrual/by-day", body))
 
     async def finance_products_buyout(self, date_from: str, date_to: str) -> dict:
         """POST /v1/finance/products/buyout — выкупленные товары за период."""
@@ -644,10 +669,6 @@ class OzonSellerClient:
         """POST /v2/products/stocks — обновить остатки FBS."""
         return await self._post("/v2/products/stocks", {"stocks": stocks})
 
-    async def product_geo_restrictions_set(self, product_id: int, restrictions: list[dict]) -> dict:
-        """POST /v1/product/geo-restrictions/set — географические ограничения."""
-        return await self._post("/v1/product/geo-restrictions/set", {"product_id": product_id, "restrictions": restrictions})
-
     async def product_unarchive(self, product_id: list[int]) -> dict:
         """POST /v1/product/unarchive — вернуть товары из архива."""
         return await self._post("/v1/product/unarchive", {"product_id": product_id})
@@ -861,10 +882,6 @@ class OzonSellerClient:
     async def posting_fbs_restrictions(self, posting_number: list[str]) -> dict:
         """POST /v1/posting/fbs/restrictions — ограничения отправлений."""
         return await self._post("/v1/posting/fbs/restrictions", {"posting_number": posting_number})
-
-    async def posting_fbs_timeslot_change(self, posting_number: str, new_timeslot_id: int) -> dict:
-        """POST /v1/posting/fbs/timeslot/change — изменить тайм-слот."""
-        return await self._post("/v1/posting/fbs/timeslot/change", {"posting_number": posting_number, "new_timeslot_id": new_timeslot_id})
 
     async def posting_fbo_get(self, posting_number: str) -> dict:
         """POST /v2/posting/fbo/get — детали FBO отправления."""

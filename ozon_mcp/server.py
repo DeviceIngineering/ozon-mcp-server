@@ -39,7 +39,7 @@ from ozon_mcp.client import OzonSellerClient, OzonPerformanceClient
 
 # ─── Инициализация ────────────────────────────────────────
 
-app = Server("ozon-mcp-server", version="2.5.0")
+app = Server("ozon-mcp-server", version="2.5.1")
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 
@@ -530,10 +530,6 @@ TOOLS = [
           "Update FBS stock (обновить остатки).",
           {"stocks": {"type": "array", "items": {"type": "object"}, "description": "offer_id/product_id, stock, warehouse_id"}},
           ["stocks"]),
-    _tool("ozon_product_geo_restrictions",
-          "Set geo restrictions (гео-ограничения).",
-          {"product_id": {"type": "integer"}, "restrictions": {"type": "array", "items": {"type": "object"}}},
-          ["product_id", "restrictions"]),
     _tool("ozon_product_unarchive",
           "Restore goods from archive (вернуть из архива).",
           {"product_id": {"type": "array", "items": {"type": "integer"}}},
@@ -658,10 +654,6 @@ TOOLS = [
           "FBS posting restrictions (ограничения отправлений).",
           {"posting_number": {"type": "array", "items": {"type": "string"}}},
           ["posting_number"]),
-    _tool("ozon_order_fbs_timeslot",
-          "Change the posting timeslot (тайм-слот).",
-          {"posting_number": {"type": "string"}, "new_timeslot_id": {"type": "integer"}},
-          ["posting_number", "new_timeslot_id"]),
     _tool("ozon_order_fbo_get",
           "FBO posting details (детали FBO).",
           {"posting_number": {"type": "string"}},
@@ -1250,8 +1242,6 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await s.product_info_description(arguments["offer_id"]))
     if name == "ozon_product_update_stocks":
         return _json(await s.product_update_stocks(arguments["stocks"]))
-    if name == "ozon_product_geo_restrictions":
-        return _json(await s.product_geo_restrictions_set(arguments["product_id"], arguments["restrictions"]))
     if name == "ozon_product_unarchive":
         return _json(await s.product_unarchive(arguments["product_id"]))
     if name == "ozon_product_delete":
@@ -1330,8 +1320,6 @@ async def _call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
         return _json(await s.posting_fbs_product_country_set(arguments["posting_number"], arguments["product_id"], arguments["country_iso"]))
     if name == "ozon_order_fbs_restrictions":
         return _json(await s.posting_fbs_restrictions(arguments["posting_number"]))
-    if name == "ozon_order_fbs_timeslot":
-        return _json(await s.posting_fbs_timeslot_change(arguments["posting_number"], arguments["new_timeslot_id"]))
     if name == "ozon_order_fbo_get":
         return _json(await s.posting_fbo_get(arguments["posting_number"]))
 

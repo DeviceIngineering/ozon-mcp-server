@@ -82,3 +82,25 @@ def test_category_tree_search_keeps_the_branch():
     assert len(found["result"]) == 1
     assert found["result"][0]["children"][0]["category_name"] == "Ящики"
     assert found["filteredBy"] == "ящик"
+
+
+def test_protobuf_wrapper_is_unwrapped():
+    """commission_ratio приходит как 'value:"0.42"' — модель прочтёт это как текст."""
+    from ozon_mcp.client import OzonSellerClient
+
+    raw = {"accruals": [{"posting": {"products": [{"commission": {
+        "commission_ratio": 'value:"0.420000"',
+        "commission": {"amount": "-621.6", "currency": "RUB"},
+    }}]}}]}
+    clean = OzonSellerClient._unwrap_protobuf(raw)
+    commission = clean["accruals"][0]["posting"]["products"][0]["commission"]
+    assert commission["commission_ratio"] == 0.42
+    assert commission["commission"] == {"amount": "-621.6", "currency": "RUB"}
+
+
+def test_protobuf_unwrap_keeps_non_numeric_text():
+    from ozon_mcp.client import OzonSellerClient
+
+    assert OzonSellerClient._unwrap_protobuf('value:"ABC"') == "ABC"
+    assert OzonSellerClient._unwrap_protobuf("обычная строка") == "обычная строка"
+    assert OzonSellerClient._unwrap_protobuf(42) == 42

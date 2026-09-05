@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.DeviceIngineering/ozon-mcp-server",
-  "description": "Ozon Seller & Performance API: 158 tools — prices, promos, ads, orders, finance. Multi-shop. Responses measured and trimmed: 476k → 64k tokens.",
+  "description": "Ozon Seller & Performance API: 156 tools — prices, promos, ads, orders, finance. Multi-shop. Responses measured and trimmed: 476k → 64k tokens.",
   "repository": {
     "url": "https://github.com/DeviceIngineering/ozon-mcp-server",
     "source": "github"
   },
-  "version": "2.5.0",
+  "version": "2.5.1",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "ozon-mcp-server",
-      "version": "2.5.0",
+      "version": "2.5.1",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
